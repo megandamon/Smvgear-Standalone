@@ -23,8 +23,7 @@ physproc.o:GmiPrintError_mod.o
 GmiPrintError_mod.o:
 smvgear.o:GmiPrintError_mod.o
 
-#timing_mod.o:timing_mod.F90
-#	$(FC) -c $(F90FLAGS_R8) timing_mod.F90
-
+distclean:clean
+	rm -f *exit*proc*
 clean:
 	rm -f *.o *.mod *.exe

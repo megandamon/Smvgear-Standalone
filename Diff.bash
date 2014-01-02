@@ -1,8 +1,6 @@
 #!/bin/bash
 
-export outputDirectory=$1
-echo $outputDirectory
 
-diff smv2chem2_exit.proc0017 $outputDirectory/
-diff smv2chem1_exit.proc0017 $outputDirectory/
-diff physproc_exit.proc0017 $outputDirectory/
+diff Smvgear-Standalone-Data/exitFiles_O0/smv2chem2_exit.proc0017 . 
+diff Smvgear-Standalone-Data/exitFiles_O0/smv2chem1_exit.proc0017 . 
+diff Smvgear-Standalone-Data/exitFiles_O0/physproc_exit.proc0017 . 
