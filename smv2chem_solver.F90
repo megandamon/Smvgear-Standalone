@@ -224,6 +224,7 @@
 
       commuWorld = 0
 
+      print*, "Calling physproc"
       call Physproc (savedVars, doQqjkInchem, doSurfEmissInChem, &
                prQqjk, prSmv2, numLat, numLong, numVert, savedVars%ifreord,&
                savedVars%imgas, savedVars%initrogen, savedVars%ioxygen,&
@@ -241,53 +242,52 @@
       call writeSmv2Chem2Exit(smv2Chem2Exit,savedVars)
 
       print*, "Writing to: ", physProcExit
-      open(file=trim(physProcExit),unit=28,form="formatted")
-
-         write(28,*) "i1, i2, ju1, j2, k1, k2"
-         write(28,*) i1, i2, ju1, j2, k1, k2
-         write(28,*) "num_qjo, num_qks, num_qjs, num_active"
-         write(28,*) numQjo, numQks, numQjs, numActive
-         write(28,*) "qjgmi(i1:i2, ju1:j2, k1:k2, num_qjo)"
-         write(28,*) qjGmi(i1:i2, ju1:j2, k1:k2, 1:numQjo)
-         write(28,*) "qkgmi(i1:i2, ju1:j2, k1:k2, num_qks)"
-         write(28,*) qkGmi(:,:,:,:)
-         write(28,*) "qqjda(i1:i2, ju1:j2, k1:k2, num_qjs)"
-         write(28,*) qqjda(i1:i2, ju1:j2, k1:k2, 1:numQjs)
-         write(28,*) "qqkda(i1:i2, ju1:j2, k1:k2, num_qks)"
-         write(28,*) qqkda(:,:,:,:)
-         write(28,*) "yda  (i1:i2, ju1:j2, k1:k2, num_active)"
-         write(28,*) yda  (i1:i2, ju1:j2, k1:k2, 1:numActive)
-         write(28,*) "do_qqjk_inchem"
-         write(28,*) doQqjkInchem
-         write(28,*) "do_semiss_inchem"
-         write(28,*) doSurfEmissInChem
-         write(28,*) "pr_diag"
-         write(28,*) prDiag
-         write(28,*) "pr_qqjk"
-         write(28,*) prQqjk
-         write(28,*) "pr_smv2"
-         write(28,*) prSmv2
-         write(28,*) "loc_proc"
-         write(28,*) localProc
-         write(28,*) "ilat, ilong, ivert"
-         write(28,*) numLat, numLong, numVert
-         write(28,*) "itloop"
-         write(28,*) itloop
-         write(28,*) "pr_nc_period"
-         write(28,*) prNcPeriod
-         write(28,*) "tdt"
-         write(28,*) timeStep
-         write(28,*) "do_cell_chem(itloop)"
-         write(28,*) doCellChem(1:itloop)
-         write(28,*) "arate(itloop, ITHERM)"
-         write(28,*) thermalRateConstants(1:itloop, 1:ITHERM)
-         write(28,*) "prate(itloop, IPHOT)"
-         write(28,*) photolysisRateConstants(1:itloop, 1:IPHOT)
-         write(28,*) "yemis(ilat*ilong, IGAS)"
-         write(28,*) surfaceEmissions(1:numLat*numLong, 1:IGAS)
-         write(28,*) "cx(itloop, IGAS)"
-         write(28,*) speciesConst(1:itloop, 1:IGAS)
-         close(28)
+      open(file=trim(physProcExit),unit=28,status="replace",form="unformatted")
+      write(28) "i1, i2, ju1, j2, k1, k2"
+      write(28) i1, i2, ju1, j2, k1, k2
+      write(28) "num_qjo, num_qks, num_qjs, num_active"
+      write(28) numQjo, numQks, numQjs, numActive
+      write(28) "qjgmi(i1:i2, ju1:j2, k1:k2, num_qjo)"
+      write(28) qjGmi(i1:i2, ju1:j2, k1:k2, 1:numQjo)
+      write(28) "qkgmi(i1:i2, ju1:j2, k1:k2, num_qks)"
+      write(28) qkGmi(:,:,:,:)
+      write(28) "qqjda(i1:i2, ju1:j2, k1:k2, num_qjs)"
+      write(28) qqjda(i1:i2, ju1:j2, k1:k2, 1:numQjs)
+      write(28) "qqkda(i1:i2, ju1:j2, k1:k2, num_qks)"
+      write(28) qqkda(:,:,:,:)
+      write(28) "yda  (i1:i2, ju1:j2, k1:k2, num_active)"
+      write(28) yda  (i1:i2, ju1:j2, k1:k2, 1:numActive)
+      write(28) "do_qqjk_inchem"
+      write(28) doQqjkInchem
+      write(28) "do_semiss_inchem"
+      write(28) doSurfEmissInChem
+      write(28) "pr_diag"
+      write(28) prDiag
+      write(28) "pr_qqjk"
+      write(28) prQqjk
+      write(28) "pr_smv2"
+      write(28) prSmv2
+      write(28) "loc_proc"
+      write(28) localProc
+      write(28) "ilat, ilong, ivert"
+      write(28) numLat, numLong, numVert
+      write(28) "itloop"
+      write(28) itloop
+      write(28) "pr_nc_period"
+      write(28) prNcPeriod
+      write(28) "tdt"
+      write(28) timeStep
+      write(28) "do_cell_chem(itloop)"
+      write(28) doCellChem(1:itloop)
+      write(28) "arate(itloop, ITHERM)"
+      write(28) thermalRateConstants(1:itloop, 1:ITHERM)
+      write(28) "prate(itloop, IPHOT)"
+      write(28) photolysisRateConstants(1:itloop, 1:IPHOT)
+      write(28) "yemis(ilat*ilong, IGAS)"
+      write(28) surfaceEmissions(1:numLat*numLong, 1:IGAS)
+      write(28) "cx(itloop, IGAS)"
+      write(28) speciesConst(1:itloop, 1:IGAS)
+      close(28)
 
       deallocate (savedVars%csuma)
       deallocate (savedVars%csumc)
@@ -1092,40 +1092,40 @@ end subroutine printSmv2Vars
          integer :: fileNumber
 
          print*, "Writing to: ", fileName
-         open(newunit=fileNumber, file=trim(fileName),form="formatted")
+         open(newunit=fileNumber, file=trim(fileName),status="replace",form="unformatted")
 
-         write(fileNumber,*) "ifreord   "
-         write(fileNumber,*) savedVars%ifreord
-         write(fileNumber,*) "ih2o      "
-         write(fileNumber,*) savedVars%ih2o
-         write(fileNumber,*) "imgas     "
-         write(fileNumber,*) savedVars%imgas
-         write(fileNumber,*) "initrogen "
-         write(fileNumber,*) savedVars%initrogen
-         write(fileNumber,*) "ioxygen   "
-         write(fileNumber,*) savedVars%ioxygen
-         write(fileNumber,*) "kuloop    "
-         write(fileNumber,*) savedVars%kuloop
-         write(fileNumber,*) "lunsmv    "
-         write(fileNumber,*) savedVars%lunsmv
-         write(fileNumber,*) "ncs       "
-         write(fileNumber,*) savedVars%ncs
-         write(fileNumber,*) "jphotrat (ICS)"
-         write(fileNumber,*) savedVars%jphotrat
-         write(fileNumber,*) "nrates   (ICS)            "
-         write(fileNumber,*) savedVars%nrates
-         write(fileNumber,*) "ntloopncs(ICS)            "
-         write(fileNumber,*) savedVars%ntloopncs
-         write(fileNumber,*) "ntspec   (ICS)            "
-         write(fileNumber,*) savedVars%ntspec
-         write(fileNumber,*) "inewold  (MXGSAER, ICS)   "
-         write(fileNumber,*) savedVars%inewold
-         write(fileNumber,*) "npphotrat(IPHOT,   ICS)   "
-         write(fileNumber,*) savedVars%npphotrat
-         write(fileNumber,*) "fracdec   "
-         write(fileNumber,*) savedVars%fracdec
-         write(fileNumber,*) "hmaxnit   "
-         write(fileNumber,*) savedVars%hmaxnit
+         write(fileNumber) "ifreord   "
+         write(fileNumber) savedVars%ifreord
+         write(fileNumber) "ih2o      "
+         write(fileNumber) savedVars%ih2o
+         write(fileNumber) "imgas     "
+         write(fileNumber) savedVars%imgas
+         write(fileNumber) "initrogen "
+         write(fileNumber) savedVars%initrogen
+         write(fileNumber) "ioxygen   "
+         write(fileNumber) savedVars%ioxygen
+         write(fileNumber) "kuloop    "
+         write(fileNumber) savedVars%kuloop
+         write(fileNumber) "lunsmv    "
+         write(fileNumber) savedVars%lunsmv
+         write(fileNumber) "ncs       "
+         write(fileNumber) savedVars%ncs
+         write(fileNumber) "jphotrat (ICS)"
+         write(fileNumber) savedVars%jphotrat
+         write(fileNumber) "nrates   (ICS)            "
+         write(fileNumber) savedVars%nrates
+         write(fileNumber) "ntloopncs(ICS)            "
+         write(fileNumber) savedVars%ntloopncs
+         write(fileNumber) "ntspec   (ICS)            "
+         write(fileNumber) savedVars%ntspec
+         write(fileNumber) "inewold  (MXGSAER, ICS)   "
+         write(fileNumber) savedVars%inewold
+         write(fileNumber) "npphotrat(IPHOT,   ICS)   "
+         write(fileNumber) savedVars%npphotrat
+         write(fileNumber) "fracdec   "
+         write(fileNumber) savedVars%fracdec
+         write(fileNumber) "hmaxnit   "
+         write(fileNumber) savedVars%hmaxnit
 
          close(fileNumber)
 
@@ -1143,270 +1143,270 @@ end subroutine printSmv2Vars
          integer :: fileNumber
 
          print*, "Writing to: ", fileName
-         open(newunit=fileNumber, file=trim(fileName),form="formatted")
+         open(newunit=fileNumber, file=trim(fileName),status="replace",form="unformatted")
 
-         write(fileNumber,*) "ioner(ICP)"
-         write(fileNumber,*) savedVars%ioner
-         write(fileNumber,*) "nallrat(ICP)"
-         write(fileNumber,*) savedVars%nallrat
-         write(fileNumber,*) "inorep(ICS)"
-         write(fileNumber,*) savedVars%inorep
-         write(fileNumber,*) "ithrr(ICS)"
-         write(fileNumber,*) savedVars%ithrr
-         write(fileNumber,*) "itwor(ICS)"
-         write(fileNumber,*) savedVars%itwor
-         write(fileNumber,*) "nm3bod(ICS)"
-         write(fileNumber,*) savedVars%nm3bod
-         write(fileNumber,*) "nmair(ICS)"
-         write(fileNumber,*) savedVars%nmair
-         write(fileNumber,*) "nmn2(ICS)"
-         write(fileNumber,*) savedVars%nmn2
-         write(fileNumber,*) "nmo2(ICS)"
-         write(fileNumber,*) savedVars%nmo2
-         write(fileNumber,*) "nmoth(ICS)"
-         write(fileNumber,*) savedVars%nmoth
-         write(fileNumber,*) "ntrates(ICS)"
-         write(fileNumber,*) savedVars%ntrates
-         write(fileNumber,*) "mappl(MXGSAER,ICS)"
-         write(fileNumber,*) savedVars%mappl
-         write(fileNumber,*) "lgasbino(MAXGL2,ICS)"
-         write(fileNumber,*) savedVars%lgasbino
-         write(fileNumber,*) "nreacoth(MAXGL2,ICS)"
-         write(fileNumber,*) savedVars%nreacoth
-         write(fileNumber,*) "lgas3bod(MAXGL3,ICS)"
-         write(fileNumber,*) savedVars%lgas3bod
-         write(fileNumber,*) "losinacp(MAXGL3,ICS)"
-         write(fileNumber,*) savedVars%losinacp
-         write(fileNumber,*) "nreac3b(MAXGL3,ICS)"
-         write(fileNumber,*) savedVars%nreac3b
-         write(fileNumber,*) "nreacair(MAXGL3,ICS)"
-         write(fileNumber,*) savedVars%nreacair
-         write(fileNumber,*) "nreacn2(MAXGL3,ICS)"
-         write(fileNumber,*) savedVars%nreacn2
-         write(fileNumber,*) "nreaco2(MAXGL3,ICS)"
-         write(fileNumber,*) savedVars%nreaco2
-         write(fileNumber,*) "jphotnk(NMTRATE,ICS)"
-         write(fileNumber,*) savedVars%jphotnk
-         write(fileNumber,*) "noldfnew(NMTRATE,ICS)"
-         write(fileNumber,*) savedVars%noldfnew
-         write(fileNumber,*) "irm2(NMRPROD,NMTRATE,ICS)"
-         write(fileNumber,*) savedVars%irm2
-         write(fileNumber,*) "ischang(ICS)"
-         write(fileNumber,*) savedVars%ischang
-         write(fileNumber,*) "kzthi(ICP)"
-         write(fileNumber,*) savedVars%kzthi
-         write(fileNumber,*) "kztlo(ICP)"
-         write(fileNumber,*) savedVars%kztlo
-         write(fileNumber,*) "ikztot(MXCOUNT4)"
-         write(fileNumber,*) savedVars%ikztot
-         write(fileNumber,*) "kbh1(MXCOUNT4)"
-         write(fileNumber,*) savedVars%kbh1
-         write(fileNumber,*) "kbh2(MXCOUNT4)"
-         write(fileNumber,*) savedVars%kbh2
-         write(fileNumber,*) "kbh3(MXCOUNT4)"
-         write(fileNumber,*) savedVars%kbh3
-         write(fileNumber,*) "kbh4(MXCOUNT4)"
-         write(fileNumber,*) savedVars%kbh4
-         write(fileNumber,*) "kbh5(MXCOUNT4)"
-         write(fileNumber,*) savedVars%kbh5
-         write(fileNumber,*) "kbl1(MXCOUNT4)"
-         write(fileNumber,*) savedVars%kbl1
-         write(fileNumber,*) "kbl2(MXCOUNT4)"
-         write(fileNumber,*) savedVars%kbl2
-         write(fileNumber,*) "kbl3(MXCOUNT4)"
-         write(fileNumber,*) savedVars%kbl3
-         write(fileNumber,*) "kbl4(MXCOUNT4)"
-         write(fileNumber,*) savedVars%kbl4
-         write(fileNumber,*) "kbl5(MXCOUNT4)"
-         write(fileNumber,*) savedVars%kbl5
-         write(fileNumber,*) "mbh1(MXCOUNT4)"
-         write(fileNumber,*) savedVars%mbh1
-         write(fileNumber,*) "mbh2(MXCOUNT4)"
-         write(fileNumber,*) savedVars%mbh2
-         write(fileNumber,*) "mbh3(MXCOUNT4)"
-         write(fileNumber,*) savedVars%mbh3
-         write(fileNumber,*) "mbh4(MXCOUNT4)"
-         write(fileNumber,*) savedVars%mbh4
-         write(fileNumber,*) "mbh5(MXCOUNT4)"
-         write(fileNumber,*) savedVars%mbh5
-         write(fileNumber,*) "mbl1(MXCOUNT4)"
-         write(fileNumber,*) savedVars%mbl1
-         write(fileNumber,*) "mbl2(MXCOUNT4)"
-         write(fileNumber,*) savedVars%mbl2
-         write(fileNumber,*) "mbl3(MXCOUNT4)"
-         write(fileNumber,*) savedVars%mbl3
-         write(fileNumber,*) "mbl4(MXCOUNT4)"
-         write(fileNumber,*) savedVars%mbl4
-         write(fileNumber,*) "mbl5(MXCOUNT4)"
-         write(fileNumber,*) savedVars%mbl5
-         write(fileNumber,*) "kzeroa(MXCOUNT4)"
-         write(fileNumber,*) savedVars%kzeroa
-         write(fileNumber,*) "kzerob(MXCOUNT4)"
-         write(fileNumber,*) savedVars%kzerob
-         write(fileNumber,*) "kzeroc(MXCOUNT4)"
-         write(fileNumber,*) savedVars%kzeroc
-         write(fileNumber,*) "kzerod(MXCOUNT4)"
-         write(fileNumber,*) savedVars%kzerod
-         write(fileNumber,*) "kzeroe(MXCOUNT4)"
-         write(fileNumber,*) savedVars%kzeroe
-         write(fileNumber,*) "mzeroa(MXCOUNT4)"
-         write(fileNumber,*) savedVars%mzeroa
-         write(fileNumber,*) "mzerob(MXCOUNT4)"
-         write(fileNumber,*) savedVars%mzerob
-         write(fileNumber,*) "mzeroc(MXCOUNT4)"
-         write(fileNumber,*) savedVars%mzeroc
-         write(fileNumber,*) "mzerod(MXCOUNT4)"
-         write(fileNumber,*) savedVars%mzerod
-         write(fileNumber,*) "mzeroe(MXCOUNT4)"
-         write(fileNumber,*) savedVars%mzeroe
-         write(fileNumber,*) "imztot(MXGSAER,ICP)"
-         write(fileNumber,*) savedVars%imztot
-         write(fileNumber,*) "ijval(MXCOUNT3)"
-         write(fileNumber,*) savedVars%ijval
-         write(fileNumber,*) "jzeroa(MXCOUNT3)"
-         write(fileNumber,*) savedVars%jzeroa
-         write(fileNumber,*) "idh1(MXCOUNT3)"
-         write(fileNumber,*) savedVars%idh1
-         write(fileNumber,*) "idh2(MXCOUNT3)"
-         write(fileNumber,*) savedVars%idh2
-         write(fileNumber,*) "idh3(MXCOUNT3)"
-         write(fileNumber,*) savedVars%idh3
-         write(fileNumber,*) "idh4(MXCOUNT3)"
-         write(fileNumber,*) savedVars%idh4
-         write(fileNumber,*) "idh5(MXCOUNT3)"
-         write(fileNumber,*) savedVars%idh5
-         write(fileNumber,*) "idl1(MXCOUNT3)"
-         write(fileNumber,*) savedVars%idl1
-         write(fileNumber,*) "idl2(MXCOUNT3)"
-         write(fileNumber,*) savedVars%idl2
-         write(fileNumber,*) "idl3(MXCOUNT3)"
-         write(fileNumber,*) savedVars%idl3
-         write(fileNumber,*) "idl4(MXCOUNT3)"
-         write(fileNumber,*) savedVars%idl4
-         write(fileNumber,*) "idl5(MXCOUNT3)"
-         write(fileNumber,*) savedVars%idl5
-         write(fileNumber,*) "ikdeca(MXCOUNT3)"
-         write(fileNumber,*) savedVars%ikdeca
-         write(fileNumber,*) "ikdecb(MXCOUNT3)"
-         write(fileNumber,*) savedVars%ikdecb
-         write(fileNumber,*) "ikdecc(MXCOUNT3)"
-         write(fileNumber,*) savedVars%ikdecc
-         write(fileNumber,*) "ikdecd(MXCOUNT3)"
-         write(fileNumber,*) savedVars%ikdecd
-         write(fileNumber,*) "ikdece(MXCOUNT3)"
-         write(fileNumber,*) savedVars%ikdece
-         write(fileNumber,*) "kjdeca(MXCOUNT3)"
-         write(fileNumber,*) savedVars%kjdeca
-         write(fileNumber,*) "kjdecb(MXCOUNT3)"
-         write(fileNumber,*) savedVars%kjdecb
-         write(fileNumber,*) "kjdecc(MXCOUNT3)"
-         write(fileNumber,*) savedVars%kjdecc
-         write(fileNumber,*) "kjdecd(MXCOUNT3)"
-         write(fileNumber,*) savedVars%kjdecd
-         write(fileNumber,*) "kjdece(MXCOUNT3)"
-         write(fileNumber,*) savedVars%kjdece
-         write(fileNumber,*) "ijthi(MXGSAER,ICP)"
-         write(fileNumber,*) savedVars%ijthi
-         write(fileNumber,*) "ijtlo(MXGSAER,ICP)"
-         write(fileNumber,*) savedVars%ijtlo
-         write(fileNumber,*) "jarrdiag(MXGSAER,ICP)"
-         write(fileNumber,*) savedVars%jarrdiag
-         write(fileNumber,*) "jhiz1(MXGSAER,ICP)"
-         write(fileNumber,*) savedVars%jhiz1
-         write(fileNumber,*) "jloz1(MXGSAER,ICP)"
-         write(fileNumber,*) savedVars%jloz1
-         write(fileNumber,*) "iarray(ICP)"
-         write(fileNumber,*) savedVars%iarray
-         write(fileNumber,*) "npdhi(ICP)"
-         write(fileNumber,*) savedVars%npdhi
-         write(fileNumber,*) "npdlo(ICP)"
-         write(fileNumber,*) savedVars%npdlo
-         write(fileNumber,*) "iialpd(MXCOUNT2)"
-         write(fileNumber,*) savedVars%iialpd
-         write(fileNumber,*) "ipospd(MXCOUNT2)"
-         write(fileNumber,*) savedVars%ipospd
-         write(fileNumber,*) "nkpdterm(MXCOUNT2)"
-         write(fileNumber,*) savedVars%nkpdterm
-         write(fileNumber,*) "nfrhi(ICP)"
-         write(fileNumber,*) savedVars%nfrhi
-         write(fileNumber,*) "nfrlo(ICP)"
-         write(fileNumber,*) savedVars%nfrlo
-         write(fileNumber,*) "nplhi(ICP)"
-         write(fileNumber,*) savedVars%nplhi
-         write(fileNumber,*) "npllo(ICP)"
-         write(fileNumber,*) savedVars%npllo
-         write(fileNumber,*) "jspcnfr(MXCOUNT4)"
-         write(fileNumber,*) savedVars%jspcnfr
-         write(fileNumber,*) "jspnpl(MXCOUNT4)"
-         write(fileNumber,*) savedVars%jspnpl
-         write(fileNumber,*) "nknfr(MXCOUNT4)"
-         write(fileNumber,*) savedVars%nknfr
-         write(fileNumber,*) "lossra(MXCOUNT4)"
-         write(fileNumber,*) savedVars%lossra
-         write(fileNumber,*) "lossrb(MXCOUNT4)"
-         write(fileNumber,*) savedVars%lossrb
-         write(fileNumber,*) "lossrc(MXCOUNT4)"
-         write(fileNumber,*) savedVars%lossrc
-         write(fileNumber,*) "lossrd(MXCOUNT4)"
-         write(fileNumber,*) savedVars%lossrd
-         write(fileNumber,*) "lossre(MXCOUNT4)"
-         write(fileNumber,*) savedVars%lossre
-         write(fileNumber,*) "nph1(MXCOUNT4)"
-         write(fileNumber,*) savedVars%nph1
-         write(fileNumber,*) "nph2(MXCOUNT4)"
-         write(fileNumber,*) savedVars%nph2
-         write(fileNumber,*) "nph3(MXCOUNT4)"
-         write(fileNumber,*) savedVars%nph3
-         write(fileNumber,*) "nph4(MXCOUNT4)"
-         write(fileNumber,*) savedVars%nph4
-         write(fileNumber,*) "nph5(MXCOUNT4)"
-         write(fileNumber,*) savedVars%nph5
-         write(fileNumber,*) "npl1(MXCOUNT4)"
-         write(fileNumber,*) savedVars%npl1
-         write(fileNumber,*) "npl2(MXCOUNT4)"
-         write(fileNumber,*) savedVars%npl2
-         write(fileNumber,*) "npl3(MXCOUNT4)"
-         write(fileNumber,*) savedVars%npl3
-         write(fileNumber,*) "npl4(MXCOUNT4)"
-         write(fileNumber,*) savedVars%npl4
-         write(fileNumber,*) "npl5(MXCOUNT4)"
-         write(fileNumber,*) savedVars%npl5
-         write(fileNumber,*) "nolosp(ICP)"
-         write(fileNumber,*) savedVars%nolosp
-         write(fileNumber,*) "newfold(NMTRATE*2,ICS)"
-         write(fileNumber,*) savedVars%newfold
-         write(fileNumber,*) "nknlosp(MAXGL3,ICS)"
-         write(fileNumber,*) savedVars%nknlosp
-         write(fileNumber,*) "nknphotrt(IPHOT,ICS)"
-         write(fileNumber,*) savedVars%nknphotrt
-         write(fileNumber,*) "abst2(ICS)"
-         write(fileNumber,*) savedVars%abst2
-         write(fileNumber,*) "errmax(ICS)"
-         write(fileNumber,*) savedVars%errmax
-         write(fileNumber,*) "hmaxday(ICS)"
-         write(fileNumber,*) savedVars%hmaxday
-         write(fileNumber,*) "timeintv(ICS)"
-         write(fileNumber,*) savedVars%timeintv
-         write(fileNumber,*) "abtol(6,ICS)"
-         write(fileNumber,*) savedVars%abtol
-         write(fileNumber,*) "enqq1(MORDER)"
-         write(fileNumber,*) savedVars%enqq1
-         write(fileNumber,*) "enqq2(MORDER)"
-         write(fileNumber,*) savedVars%enqq2
-         write(fileNumber,*) "enqq3(MORDER)"
-         write(fileNumber,*) savedVars%enqq3
-         write(fileNumber,*) "conp15(MORDER)"
-         write(fileNumber,*) savedVars%conp15
-         write(fileNumber,*) "conpst(MORDER)"
-         write(fileNumber,*) savedVars%conpst
-         write(fileNumber,*) "pertst2(MORDER,3)"
-         write(fileNumber,*) savedVars%pertst2
-         write(fileNumber,*) "aset(10,8)"
-         write(fileNumber,*) savedVars%aset
-         write(fileNumber,*) "fracpl(MXCOUNT2)"
-         write(fileNumber,*) savedVars%fracpl
-         write(fileNumber,*) "fracnfr(MXCOUNT4)"
-         write(fileNumber,*) savedVars%fracnfr
+         write(fileNumber) "ioner(ICP)"
+         write(fileNumber) savedVars%ioner
+         write(fileNumber) "nallrat(ICP)"
+         write(fileNumber) savedVars%nallrat
+         write(fileNumber) "inorep(ICS)"
+         write(fileNumber) savedVars%inorep
+         write(fileNumber) "ithrr(ICS)"
+         write(fileNumber) savedVars%ithrr
+         write(fileNumber) "itwor(ICS)"
+         write(fileNumber) savedVars%itwor
+         write(fileNumber) "nm3bod(ICS)"
+         write(fileNumber) savedVars%nm3bod
+         write(fileNumber) "nmair(ICS)"
+         write(fileNumber) savedVars%nmair
+         write(fileNumber) "nmn2(ICS)"
+         write(fileNumber) savedVars%nmn2
+         write(fileNumber) "nmo2(ICS)"
+         write(fileNumber) savedVars%nmo2
+         write(fileNumber) "nmoth(ICS)"
+         write(fileNumber) savedVars%nmoth
+         write(fileNumber) "ntrates(ICS)"
+         write(fileNumber) savedVars%ntrates
+         write(fileNumber) "mappl(MXGSAER,ICS)"
+         write(fileNumber) savedVars%mappl
+         write(fileNumber) "lgasbino(MAXGL2,ICS)"
+         write(fileNumber) savedVars%lgasbino
+         write(fileNumber) "nreacoth(MAXGL2,ICS)"
+         write(fileNumber) savedVars%nreacoth
+         write(fileNumber) "lgas3bod(MAXGL3,ICS)"
+         write(fileNumber) savedVars%lgas3bod
+         write(fileNumber) "losinacp(MAXGL3,ICS)"
+         write(fileNumber) savedVars%losinacp
+         write(fileNumber) "nreac3b(MAXGL3,ICS)"
+         write(fileNumber) savedVars%nreac3b
+         write(fileNumber) "nreacair(MAXGL3,ICS)"
+         write(fileNumber) savedVars%nreacair
+         write(fileNumber) "nreacn2(MAXGL3,ICS)"
+         write(fileNumber) savedVars%nreacn2
+         write(fileNumber) "nreaco2(MAXGL3,ICS)"
+         write(fileNumber) savedVars%nreaco2
+         write(fileNumber) "jphotnk(NMTRATE,ICS)"
+         write(fileNumber) savedVars%jphotnk
+         write(fileNumber) "noldfnew(NMTRATE,ICS)"
+         write(fileNumber) savedVars%noldfnew
+         write(fileNumber) "irm2(NMRPROD,NMTRATE,ICS)"
+         write(fileNumber) savedVars%irm2
+         write(fileNumber) "ischang(ICS)"
+         write(fileNumber) savedVars%ischang
+         write(fileNumber) "kzthi(ICP)"
+         write(fileNumber) savedVars%kzthi
+         write(fileNumber) "kztlo(ICP)"
+         write(fileNumber) savedVars%kztlo
+         write(fileNumber) "ikztot(MXCOUNT4)"
+         write(fileNumber) savedVars%ikztot
+         write(fileNumber) "kbh1(MXCOUNT4)"
+         write(fileNumber) savedVars%kbh1
+         write(fileNumber) "kbh2(MXCOUNT4)"
+         write(fileNumber) savedVars%kbh2
+         write(fileNumber) "kbh3(MXCOUNT4)"
+         write(fileNumber) savedVars%kbh3
+         write(fileNumber) "kbh4(MXCOUNT4)"
+         write(fileNumber) savedVars%kbh4
+         write(fileNumber) "kbh5(MXCOUNT4)"
+         write(fileNumber) savedVars%kbh5
+         write(fileNumber) "kbl1(MXCOUNT4)"
+         write(fileNumber) savedVars%kbl1
+         write(fileNumber) "kbl2(MXCOUNT4)"
+         write(fileNumber) savedVars%kbl2
+         write(fileNumber) "kbl3(MXCOUNT4)"
+         write(fileNumber) savedVars%kbl3
+         write(fileNumber) "kbl4(MXCOUNT4)"
+         write(fileNumber) savedVars%kbl4
+         write(fileNumber) "kbl5(MXCOUNT4)"
+         write(fileNumber) savedVars%kbl5
+         write(fileNumber) "mbh1(MXCOUNT4)"
+         write(fileNumber) savedVars%mbh1
+         write(fileNumber) "mbh2(MXCOUNT4)"
+         write(fileNumber) savedVars%mbh2
+         write(fileNumber) "mbh3(MXCOUNT4)"
+         write(fileNumber) savedVars%mbh3
+         write(fileNumber) "mbh4(MXCOUNT4)"
+         write(fileNumber) savedVars%mbh4
+         write(fileNumber) "mbh5(MXCOUNT4)"
+         write(fileNumber) savedVars%mbh5
+         write(fileNumber) "mbl1(MXCOUNT4)"
+         write(fileNumber) savedVars%mbl1
+         write(fileNumber) "mbl2(MXCOUNT4)"
+         write(fileNumber) savedVars%mbl2
+         write(fileNumber) "mbl3(MXCOUNT4)"
+         write(fileNumber) savedVars%mbl3
+         write(fileNumber) "mbl4(MXCOUNT4)"
+         write(fileNumber) savedVars%mbl4
+         write(fileNumber) "mbl5(MXCOUNT4)"
+         write(fileNumber) savedVars%mbl5
+         write(fileNumber) "kzeroa(MXCOUNT4)"
+         write(fileNumber) savedVars%kzeroa
+         write(fileNumber) "kzerob(MXCOUNT4)"
+         write(fileNumber) savedVars%kzerob
+         write(fileNumber) "kzeroc(MXCOUNT4)"
+         write(fileNumber) savedVars%kzeroc
+         write(fileNumber) "kzerod(MXCOUNT4)"
+         write(fileNumber) savedVars%kzerod
+         write(fileNumber) "kzeroe(MXCOUNT4)"
+         write(fileNumber) savedVars%kzeroe
+         write(fileNumber) "mzeroa(MXCOUNT4)"
+         write(fileNumber) savedVars%mzeroa
+         write(fileNumber) "mzerob(MXCOUNT4)"
+         write(fileNumber) savedVars%mzerob
+         write(fileNumber) "mzeroc(MXCOUNT4)"
+         write(fileNumber) savedVars%mzeroc
+         write(fileNumber) "mzerod(MXCOUNT4)"
+         write(fileNumber) savedVars%mzerod
+         write(fileNumber) "mzeroe(MXCOUNT4)"
+         write(fileNumber) savedVars%mzeroe
+         write(fileNumber) "imztot(MXGSAER,ICP)"
+         write(fileNumber) savedVars%imztot
+         write(fileNumber) "ijval(MXCOUNT3)"
+         write(fileNumber) savedVars%ijval
+         write(fileNumber) "jzeroa(MXCOUNT3)"
+         write(fileNumber) savedVars%jzeroa
+         write(fileNumber) "idh1(MXCOUNT3)"
+         write(fileNumber) savedVars%idh1
+         write(fileNumber) "idh2(MXCOUNT3)"
+         write(fileNumber) savedVars%idh2
+         write(fileNumber) "idh3(MXCOUNT3)"
+         write(fileNumber) savedVars%idh3
+         write(fileNumber) "idh4(MXCOUNT3)"
+         write(fileNumber) savedVars%idh4
+         write(fileNumber) "idh5(MXCOUNT3)"
+         write(fileNumber) savedVars%idh5
+         write(fileNumber) "idl1(MXCOUNT3)"
+         write(fileNumber) savedVars%idl1
+         write(fileNumber) "idl2(MXCOUNT3)"
+         write(fileNumber) savedVars%idl2
+         write(fileNumber) "idl3(MXCOUNT3)"
+         write(fileNumber) savedVars%idl3
+         write(fileNumber) "idl4(MXCOUNT3)"
+         write(fileNumber) savedVars%idl4
+         write(fileNumber) "idl5(MXCOUNT3)"
+         write(fileNumber) savedVars%idl5
+         write(fileNumber) "ikdeca(MXCOUNT3)"
+         write(fileNumber) savedVars%ikdeca
+         write(fileNumber) "ikdecb(MXCOUNT3)"
+         write(fileNumber) savedVars%ikdecb
+         write(fileNumber) "ikdecc(MXCOUNT3)"
+         write(fileNumber) savedVars%ikdecc
+         write(fileNumber) "ikdecd(MXCOUNT3)"
+         write(fileNumber) savedVars%ikdecd
+         write(fileNumber) "ikdece(MXCOUNT3)"
+         write(fileNumber) savedVars%ikdece
+         write(fileNumber) "kjdeca(MXCOUNT3)"
+         write(fileNumber) savedVars%kjdeca
+         write(fileNumber) "kjdecb(MXCOUNT3)"
+         write(fileNumber) savedVars%kjdecb
+         write(fileNumber) "kjdecc(MXCOUNT3)"
+         write(fileNumber) savedVars%kjdecc
+         write(fileNumber) "kjdecd(MXCOUNT3)"
+         write(fileNumber) savedVars%kjdecd
+         write(fileNumber) "kjdece(MXCOUNT3)"
+         write(fileNumber) savedVars%kjdece
+         write(fileNumber) "ijthi(MXGSAER,ICP)"
+         write(fileNumber) savedVars%ijthi
+         write(fileNumber) "ijtlo(MXGSAER,ICP)"
+         write(fileNumber) savedVars%ijtlo
+         write(fileNumber) "jarrdiag(MXGSAER,ICP)"
+         write(fileNumber) savedVars%jarrdiag
+         write(fileNumber) "jhiz1(MXGSAER,ICP)"
+         write(fileNumber) savedVars%jhiz1
+         write(fileNumber) "jloz1(MXGSAER,ICP)"
+         write(fileNumber) savedVars%jloz1
+         write(fileNumber) "iarray(ICP)"
+         write(fileNumber) savedVars%iarray
+         write(fileNumber) "npdhi(ICP)"
+         write(fileNumber) savedVars%npdhi
+         write(fileNumber) "npdlo(ICP)"
+         write(fileNumber) savedVars%npdlo
+         write(fileNumber) "iialpd(MXCOUNT2)"
+         write(fileNumber) savedVars%iialpd
+         write(fileNumber) "ipospd(MXCOUNT2)"
+         write(fileNumber) savedVars%ipospd
+         write(fileNumber) "nkpdterm(MXCOUNT2)"
+         write(fileNumber) savedVars%nkpdterm
+         write(fileNumber) "nfrhi(ICP)"
+         write(fileNumber) savedVars%nfrhi
+         write(fileNumber) "nfrlo(ICP)"
+         write(fileNumber) savedVars%nfrlo
+         write(fileNumber) "nplhi(ICP)"
+         write(fileNumber) savedVars%nplhi
+         write(fileNumber) "npllo(ICP)"
+         write(fileNumber) savedVars%npllo
+         write(fileNumber) "jspcnfr(MXCOUNT4)"
+         write(fileNumber) savedVars%jspcnfr
+         write(fileNumber) "jspnpl(MXCOUNT4)"
+         write(fileNumber) savedVars%jspnpl
+         write(fileNumber) "nknfr(MXCOUNT4)"
+         write(fileNumber) savedVars%nknfr
+         write(fileNumber) "lossra(MXCOUNT4)"
+         write(fileNumber) savedVars%lossra
+         write(fileNumber) "lossrb(MXCOUNT4)"
+         write(fileNumber) savedVars%lossrb
+         write(fileNumber) "lossrc(MXCOUNT4)"
+         write(fileNumber) savedVars%lossrc
+         write(fileNumber) "lossrd(MXCOUNT4)"
+         write(fileNumber) savedVars%lossrd
+         write(fileNumber) "lossre(MXCOUNT4)"
+         write(fileNumber) savedVars%lossre
+         write(fileNumber) "nph1(MXCOUNT4)"
+         write(fileNumber) savedVars%nph1
+         write(fileNumber) "nph2(MXCOUNT4)"
+         write(fileNumber) savedVars%nph2
+         write(fileNumber) "nph3(MXCOUNT4)"
+         write(fileNumber) savedVars%nph3
+         write(fileNumber) "nph4(MXCOUNT4)"
+         write(fileNumber) savedVars%nph4
+         write(fileNumber) "nph5(MXCOUNT4)"
+         write(fileNumber) savedVars%nph5
+         write(fileNumber) "npl1(MXCOUNT4)"
+         write(fileNumber) savedVars%npl1
+         write(fileNumber) "npl2(MXCOUNT4)"
+         write(fileNumber) savedVars%npl2
+         write(fileNumber) "npl3(MXCOUNT4)"
+         write(fileNumber) savedVars%npl3
+         write(fileNumber) "npl4(MXCOUNT4)"
+         write(fileNumber) savedVars%npl4
+         write(fileNumber) "npl5(MXCOUNT4)"
+         write(fileNumber) savedVars%npl5
+         write(fileNumber) "nolosp(ICP)"
+         write(fileNumber) savedVars%nolosp
+         write(fileNumber) "newfold(NMTRATE*2,ICS)"
+         write(fileNumber) savedVars%newfold
+         write(fileNumber) "nknlosp(MAXGL3,ICS)"
+         write(fileNumber) savedVars%nknlosp
+         write(fileNumber) "nknphotrt(IPHOT,ICS)"
+         write(fileNumber) savedVars%nknphotrt
+         write(fileNumber) "abst2(ICS)"
+         write(fileNumber) savedVars%abst2
+         write(fileNumber) "errmax(ICS)"
+         write(fileNumber) savedVars%errmax
+         write(fileNumber) "hmaxday(ICS)"
+         write(fileNumber) savedVars%hmaxday
+         write(fileNumber) "timeintv(ICS)"
+         write(fileNumber) savedVars%timeintv
+         write(fileNumber) "abtol(6,ICS)"
+         write(fileNumber) savedVars%abtol
+         write(fileNumber) "enqq1(MORDER)"
+         write(fileNumber) savedVars%enqq1
+         write(fileNumber) "enqq2(MORDER)"
+         write(fileNumber) savedVars%enqq2
+         write(fileNumber) "enqq3(MORDER)"
+         write(fileNumber) savedVars%enqq3
+         write(fileNumber) "conp15(MORDER)"
+         write(fileNumber) savedVars%conp15
+         write(fileNumber) "conpst(MORDER)"
+         write(fileNumber) savedVars%conpst
+         write(fileNumber) "pertst2(MORDER,3)"
+         write(fileNumber) savedVars%pertst2
+         write(fileNumber) "aset(10,8)"
+         write(fileNumber) savedVars%aset
+         write(fileNumber) "fracpl(MXCOUNT2)"
+         write(fileNumber) savedVars%fracpl
+         write(fileNumber) "fracnfr(MXCOUNT4)"
+         write(fileNumber) savedVars%fracnfr
 
          close(fileNumber)
 
