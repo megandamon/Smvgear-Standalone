@@ -95,43 +95,59 @@
       character(len=100) :: smv2Chem2Exit
       character(len=100) :: physProcEntry
       character(len=100) :: physProcExit
-      integer :: rank
+      character(:), allocatable :: rankString
+      character(:), allocatable :: zeroString
       logical  :: prDiag
+      integer :: rankSize, i
+
+      integer, parameter :: MAX_RANK_SIZE = 4
+
 
 !     ----------------
 !     Begin execution.
 !     ----------------
       call timingInit
 
-      rank = 17
-      prDiag = .true.
-      if (prDiag) then
-        Write (6,*) 'doSmv2Solver called by ', rank
+
+      call get_command_argument(2, length=rankSize)
+      print*, "rankSize: ", rankSize
+      if (rankSize .gt. 3) then
+         print*, "rank must be less than 1000"
+         stop
       end if
 
-      write(smv2Chem1Entry,1001) rank
- 1001 format('smv2chem1_entry.proc',i4.4)
-      write(smv2Chem1Exit,1002) rank
- 1002 format('smv2chem1_exit.proc',i4.4)
-      write(smv2Chem2Entry,1003) rank
- 1003 format('smv2chem2_entry.proc',i4.4)
-      write(smv2Chem2Exit, 1004) rank
- 1004 format('smv2chem2_exit.proc',i4.4)
-      write(physProcEntry, 1005) rank
- 1005 format('physproc_entry.proc',i4.4)
-      write(physProcExit, 1006) rank
- 1006 format('physproc_exit.proc',i4.4)
+      allocate(character(rankSize)::rankString)
+      allocate(character(MAX_RANK_SIZE-rankSize)::zeroString)
+      call get_command_argument(2, value=rankString)
+
+      prDiag = .true.
+      if (prDiag) then
+        Write (6,*) 'doSmv2Solver called by ', rankString
+      end if
+
+      if (rankSize .eq. 1) zeroString = "000"
+      if (rankSize .eq. 2) zeroString = "00"
+      if (rankSize .eq. 3) zeroString = "0"
+
+      smv2Chem1Entry = 'smv2chem1_entry.proc' // zeroString // rankString
+      smv2Chem1Exit = 'smv2chem1_exit.proc' // zeroString // rankString
+      smv2Chem2Entry = 'smv2chem2_entry.proc' // zeroString // rankString
+      smv2Chem2Exit = 'smv2chem2_exit.proc' // zeroString // rankString
+      physProcEntry = 'physproc_entry.proc' // zeroString // rankString
+      physProcExit = 'physproc_exit.proc' // zeroString // rankString
+
+
+
+
 
 
       call initializeSavedVars(savedVars)
-
       call readSmv1Vars(savedVars,smv2Chem1Entry)
       call readSmv2Vars(savedVars,smv2Chem2Entry)
 
 
 
       print*, "reading: ", trim(physProcEntry)
-
       open(file=trim(physProcEntry),unit=27,form="formatted")
       read(27,*)
       read(27,*) i1, i2, ju1, j2, k1, k2
@@ -190,6 +206,8 @@
       read(27,*)
       read(27,*) speciesConst(1:itloop, 1:IGAS)
       close(27)
+
+
 
       if (first) then
          first = .false.
