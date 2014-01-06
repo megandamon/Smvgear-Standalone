@@ -1,41 +1,34 @@
 Smvgear-Standalone
 ==================
-This driver reads the input state from the following entry files:
-smv2chem2_entry.proc0017
-smv2chem1_entry.proc0017
-physproc_entry.proc0017
+This driver reads the input state from the following entry* files:
+ - smv2chem2_entry.proc0133
+ - smv2chem1_entry.proc0133
+ - physproc_entry.proc0133
+*proc0133 is for process 133
 
 
-
-To set up the input and exit data
+To set up the input and exit data for specific process block
 ==================
-Obtain these files from the NCCS in this directory:
-scp discover:/archive/anon/pub/gmidata2/users/mrdamon/Smvgear-Standalone-Data.tar.gz .
+For example, obtain the data files for process 133 from the NCCS in this directory:
+scp discover:/archive/anon/pub/gmidata2/users/mrdamon/Smvgear-Standalone-Data/proc_archives/0133.tar .
 
 Extract files:
-gunzip Smvgear-Standalone-Data.tar.gz
-tar xvf Smvgear-Standalone-Data.tar
+tar xvf 0133.tar
 
 Link the input data:
-./LinkData.bash
+./LinkData.bash 0133
 
-
-Building and running the component
+Building and running the component with specific processor data
 ==================
 make 
-./Do_Smv2_Solver.exe 
-
+./Do_Smv2_Solver.exe -r 133
 
 Directions for validating output data
 ==================
-./Diff.bash
-
+ ./Diff.bash 0133
 
 Cleaning the installation
 ==================
 make clean
 or
 make distclean (to remove exit files)
- 
-
-
