@@ -38,6 +38,7 @@
 !  numQks, numQjs, numActive, commuWorld)
 
       use GmiSolver_SavedVariables_mod, only : t_Smv2Saved
+      use Physproc_mod
       use timing_mod
 
       implicit none
@@ -51,32 +52,11 @@
 !     ----------------------
 
       integer :: commuWorld
-      integer :: i1, i2, ju1, j2, k1, k2
-      integer :: numQjo, numQks, numQjs, numActive
-
-      real*8, allocatable :: qjGmi(:, :, :, :)
-      real*8, allocatable :: qkGmi(:, :, :, :)
-      real*8, allocatable :: qqjda(:,:,:,:)
-      real*8, allocatable:: qqkda(:,:,:,:)
-      real*8, allocatable :: yda (:,:,:,:)
 
       logical, save :: first = .true.
-      logical  :: doQqjkInchem
-      logical  :: doSurfEmissInChem
-      logical  :: prQqjk
-      logical  :: prSmv2
-      integer  :: localProc
-      integer  :: numLat, numLong, numVert
-      integer  :: itloop
-      real*8  :: prNcPeriod
-      real*8  :: timeStep
-      logical, allocatable  :: doCellChem(:)
-      real*8, allocatable :: thermalRateConstants(:, :)
-      real*8, allocatable :: photolysisRateConstants(:, :)
-      real*8, allocatable :: surfaceEmissions(:, :)
-
-      real*8, allocatable :: speciesConst(:, :)
+!
       type(t_Smv2Saved) :: savedVars
+      type(Physproc_type) :: physprocVars
 
 !     ----------------------
 !     Variable declarations.
@@ -97,8 +77,8 @@
       character(len=100) :: physProcExit
       character(:), allocatable :: rankString
       character(:), allocatable :: zeroString
-      logical  :: prDiag
       integer :: rankSize, i
+      integer :: i1, i2, ju1, j2, k1, k2
 
       integer, parameter :: MAX_RANK_SIZE = 4
 
@@ -110,7 +90,6 @@
 
 
       call get_command_argument(2, length=rankSize)
-      print*, "rankSize: ", rankSize
       if (rankSize .gt. 3) then
          print*, "rank must be less than 1000"
          stop
@@ -120,8 +99,8 @@
       allocate(character(MAX_RANK_SIZE-rankSize)::zeroString)
       call get_command_argument(2, value=rankString)
 
-      prDiag = .true.
-      if (prDiag) then
+      physprocVars%prDiag = .true.
+      if (physprocVars%prDiag) then
         Write (6,*) 'doSmv2Solver called by ', rankString
       end if
 
@@ -152,90 +131,88 @@
       read(27,*)
       read(27,*) i1, i2, ju1, j2, k1, k2
       read(27,*)
-      read(27,*) numQjo, numQks, numQjs, numActive
-      allocate(qjGmi(i1:i2, ju1:j2, k1:k2, numQjo))
-      allocate(qkGmi(i1:i2, ju1:j2, k1:k2, numQks))
-      allocate(qqjda(i1:i2, ju1:j2, k1:k2, numQjs))
-      allocate(qqkda(i1:i2, ju1:j2, k1:k2, numQks))
-      allocate(yda  (i1:i2, ju1:j2, k1:k2, numActive))
-      read(27,*)
-      read(27,*) qjGmi(i1:i2, ju1:j2, k1:k2, 1:numQjo)
-      read(27,*)
-      read(27,*) qkGmi(i1:i2, ju1:j2, k1:k2, 1:numQks)
-      read(27,*)
-      read(27,*) qqjda(i1:i2, ju1:j2, k1:k2, 1:numQjs)
-      read(27,*)
-      read(27,*) qqkda(i1:i2, ju1:j2, k1:k2, 1:numQks)
-      read(27,*)
-      read(27,*) yda  (i1:i2, ju1:j2, k1:k2, 1:numActive)
-      read(27,*)
-      read(27,*) doQqjkInchem
-      read(27,*)
-      read(27,*) doSurfEmissInChem
-      read(27,*)
-      read(27,*) prDiag
-      read(27,*)
-      read(27,*) prQqjk
-      read(27,*)
-      read(27,*) prSmv2
-      read(27,*)
-      read(27,*) localProc
-      read(27,*)
-      read(27,*) numLat, numLong, numVert
-      read(27,*)
-      read(27,*) itloop
-      read(27,*)
-      read(27,*) prNcPeriod
-      read(27,*)
-      read(27,*) timeStep
+      read(27,*) physprocVars%numQjo, physprocVars%numQks, physprocVars%numQjs, physprocVars%numActive
 
-      allocate(doCellChem(itloop))
-      allocate(thermalRateConstants(itloop, ITHERM))
-      allocate(photolysisRateConstants(itloop, IPHOT))
-      allocate(surfaceEmissions(numLat*numLong, IGAS))
-      allocate(speciesConst(itloop, IGAS))
+      allocate(physprocVars%qjGmi(i1:i2, ju1:j2, k1:k2, physprocVars%numQjo))
+      allocate(physprocVars%qkGmi(i1:i2, ju1:j2, k1:k2, physprocVars%numQks))
+      allocate(physprocVars%qqjda(i1:i2, ju1:j2, k1:k2, physprocVars%numQjs))
+      allocate(physprocVars%qqkda(i1:i2, ju1:j2, k1:k2, physprocVars%numQks))
+      allocate(physprocVars%yda  (i1:i2, ju1:j2, k1:k2, physprocVars%numActive))
+      read(27,*)
+      read(27,*) physprocVars%qjGmi(i1:i2, ju1:j2, k1:k2, 1:physprocVars%numQjo)
+      read(27,*)
+      read(27,*) physprocVars%qkGmi(i1:i2, ju1:j2, k1:k2, 1:physprocVars%numQks)
+      read(27,*)
+      read(27,*) physprocVars%qqjda(i1:i2, ju1:j2, k1:k2, 1:physprocVars%numQjs)
+      read(27,*)
+      read(27,*) physprocVars%qqkda(i1:i2, ju1:j2, k1:k2, 1:physprocVars%numQks)
+      read(27,*)
+      read(27,*) physprocVars%yda  (i1:i2, ju1:j2, k1:k2, 1:physprocVars%numActive)
+      read(27,*)
+      read(27,*) physprocVars%doQqjkInchem
+      read(27,*)
+      read(27,*) physprocVars%doSurfEmissInChem
+      read(27,*)
+      read(27,*) physprocVars%prDiag
+      read(27,*)
+      read(27,*) physprocVars%prQqjk
+      read(27,*)
+      read(27,*) physprocVars%prSmv2
+      read(27,*)
+      read(27,*) physprocVars%localProc
+      read(27,*)
+      read(27,*) physprocVars%numLat, physprocVars%numLong, physprocVars%numVert
+      read(27,*)
+      read(27,*) physprocVars%itloop
+      read(27,*)
+      read(27,*) physprocVars%prNcPeriod
+      read(27,*)
+      read(27,*) physprocVars%timeStep
+
+      allocate(physprocVars%doCellChem(physprocVars%itloop))
+      allocate(physprocVars%thermalRateConstants(physprocVars%itloop, ITHERM))
+      allocate(physprocVars%photolysisRateConstants(physprocVars%itloop, IPHOT))
+      allocate(physprocVars%surfaceEmissions(physprocVars%numLat*physprocVars%numLong, IGAS))
+      allocate(physprocVars%speciesConst(physprocVars%itloop, IGAS))
 
       read(27,*)
-      read(27,*) doCellChem(1:itloop)
+      read(27,*) physprocVars%doCellChem(1:physprocVars%itloop)
       read(27,*)
-      read(27,*) thermalRateConstants(1:itloop, 1:ITHERM)
+      read(27,*) physprocVars%thermalRateConstants(:,:)
       read(27,*)
-      read(27,*) photolysisRateConstants(1:itloop, 1:IPHOT)
+      read(27,*) physprocVars%photolysisRateConstants(1:physprocVars%itloop, 1:IPHOT)
       read(27,*)
-      read(27,*) surfaceEmissions(1:numLat*numLong, 1:IGAS)
+      read(27,*) physprocVars%surfaceEmissions(1:physprocVars%numLat*physprocVars%numLong, 1:IGAS)
       read(27,*)
-      read(27,*) speciesConst(1:itloop, 1:IGAS)
+      read(27,*) physprocVars%speciesConst(1:physprocVars%itloop, 1:IGAS)
       close(27)
-
-
 
       if (first) then
          first = .false.
-         Allocate (savedVars%csuma(itloop))
-         Allocate (savedVars%csumc(itloop))
+         Allocate (savedVars%csuma(physprocVars%itloop))
+         Allocate (savedVars%csumc(physprocVars%itloop))
          savedVars%csuma = 0.0d0; savedVars%csumc = 0.0d0
       end if
 
-      allocate (jreorder(itloop))
-      allocate (lreorder(itloop))
-      allocate (errmx2(itloop))
+      allocate (jreorder(physprocVars%itloop))
+      allocate (lreorder(physprocVars%itloop))
+      allocate (errmx2(physprocVars%itloop))
       jreorder(:) = 0; lreorder(:) = 0
       errmx2  (:) = 0.0d0
 
       commuWorld = 0
 
-      print*, "Calling physproc"
-      call Physproc (savedVars, doQqjkInchem, doSurfEmissInChem, &
-               prQqjk, prSmv2, numLat, numLong, numVert, savedVars%ifreord,&
+      call Physproc (savedVars, physprocVars%doQqjkInchem, physprocVars%doSurfEmissInChem, &
+               physprocVars%prQqjk, physprocVars%prSmv2, physprocVars%numLat, physprocVars%numLong, physprocVars%numVert, savedVars%ifreord,&
                savedVars%imgas, savedVars%initrogen, savedVars%ioxygen,&
-               itloop, savedVars%kuloop, savedVars%lunsmv, &
+               physprocVars%itloop, savedVars%kuloop, savedVars%lunsmv, &
                savedVars%ncs, savedVars%fracdec, savedVars%hmaxnit, &
-               prNcPeriod, timeStep, doCellChem, savedVars%jphotrat, &
+               physprocVars%prNcPeriod, physprocVars%timeStep, physprocVars%doCellChem, savedVars%jphotrat, &
                savedVars%nrates, savedVars%ntloopncs, savedVars%ntspec,&
-               savedVars%inewold, savedVars%npphotrat, thermalRateConstants, photolysisRateConstants, &
-               surfaceEmissions, jreorder, lreorder, savedVars%csuma,  &
-               savedVars%csumc, errmx2, speciesConst, yda, qqkda, qqjda, &
-               i1, i2, ju1, j2, k1, k2, numQks, numQjs, numActive, &
+               savedVars%inewold, savedVars%npphotrat, physprocVars%thermalRateConstants, physprocVars%photolysisRateConstants, &
+               physprocVars%surfaceEmissions, jreorder, lreorder, savedVars%csuma,  &
+               savedVars%csumc, errmx2, physprocVars%speciesConst, physprocVars%yda, physprocVars%qqkda, physprocVars%qqjda, &
+               i1, i2, ju1, j2, k1, k2, physprocVars%numQks, physprocVars%numQjs, physprocVars%numActive, &
                commuWorld)
 
       call writeSmv2Chem1Exit(smv2Chem1Exit,savedVars)
@@ -243,50 +220,51 @@
 
       print*, "Writing to: ", physProcExit
       open(file=trim(physProcExit),unit=28,status="replace",form="unformatted")
+
       write(28) "i1, i2, ju1, j2, k1, k2"
       write(28) i1, i2, ju1, j2, k1, k2
       write(28) "num_qjo, num_qks, num_qjs, num_active"
-      write(28) numQjo, numQks, numQjs, numActive
+      write(28) physprocVars%numQjo, physprocVars%numQks, physprocVars%numQjs, physprocVars%numActive
       write(28) "qjgmi(i1:i2, ju1:j2, k1:k2, num_qjo)"
-      write(28) qjGmi(i1:i2, ju1:j2, k1:k2, 1:numQjo)
+      write(28) physprocVars%qjGmi(i1:i2, ju1:j2, k1:k2, 1:physprocVars%numQjo)
       write(28) "qkgmi(i1:i2, ju1:j2, k1:k2, num_qks)"
-      write(28) qkGmi(:,:,:,:)
+      write(28) physprocVars%qkGmi(:,:,:,:)
       write(28) "qqjda(i1:i2, ju1:j2, k1:k2, num_qjs)"
-      write(28) qqjda(i1:i2, ju1:j2, k1:k2, 1:numQjs)
+      write(28) physprocVars%qqjda(i1:i2, ju1:j2, k1:k2, 1:physprocVars%numQjs)
       write(28) "qqkda(i1:i2, ju1:j2, k1:k2, num_qks)"
-      write(28) qqkda(:,:,:,:)
+      write(28) physprocVars%qqkda(:,:,:,:)
       write(28) "yda  (i1:i2, ju1:j2, k1:k2, num_active)"
-      write(28) yda  (i1:i2, ju1:j2, k1:k2, 1:numActive)
+      write(28) physprocVars%yda  (i1:i2, ju1:j2, k1:k2, 1:physprocVars%numActive)
       write(28) "do_qqjk_inchem"
-      write(28) doQqjkInchem
+      write(28) physprocVars%doQqjkInchem
       write(28) "do_semiss_inchem"
-      write(28) doSurfEmissInChem
+      write(28) physprocVars%doSurfEmissInChem
       write(28) "pr_diag"
-      write(28) prDiag
+      write(28) physprocVars%prDiag
       write(28) "pr_qqjk"
-      write(28) prQqjk
+      write(28) physprocVars%prQqjk
       write(28) "pr_smv2"
-      write(28) prSmv2
+      write(28) physprocVars%prSmv2
       write(28) "loc_proc"
-      write(28) localProc
+      write(28) physprocVars%localProc
       write(28) "ilat, ilong, ivert"
-      write(28) numLat, numLong, numVert
+      write(28) physprocVars%numLat, physprocVars%numLong, physprocVars%numVert
       write(28) "itloop"
-      write(28) itloop
+      write(28) physprocVars%itloop
       write(28) "pr_nc_period"
-      write(28) prNcPeriod
+      write(28) physprocVars%prNcPeriod
       write(28) "tdt"
-      write(28) timeStep
+      write(28) physprocVars%timeStep
       write(28) "do_cell_chem(itloop)"
-      write(28) doCellChem(1:itloop)
+      write(28) physprocVars%doCellChem(1:physprocVars%itloop)
       write(28) "arate(itloop, ITHERM)"
-      write(28) thermalRateConstants(1:itloop, 1:ITHERM)
+      write(28) physprocVars%thermalRateConstants(:,:)
       write(28) "prate(itloop, IPHOT)"
-      write(28) photolysisRateConstants(1:itloop, 1:IPHOT)
+      write(28) physprocVars%photolysisRateConstants(1:physprocVars%itloop, 1:IPHOT)
       write(28) "yemis(ilat*ilong, IGAS)"
-      write(28) surfaceEmissions(1:numLat*numLong, 1:IGAS)
+      write(28) physprocVars%surfaceEmissions(1:physprocVars%numLat*physprocVars%numLong, 1:IGAS)
       write(28) "cx(itloop, IGAS)"
-      write(28) speciesConst(1:itloop, 1:IGAS)
+      write(28) physprocVars%speciesConst(1:physprocVars%itloop, 1:IGAS)
       close(28)
 
       deallocate (savedVars%csuma)
@@ -294,18 +272,18 @@
       deallocate (jreorder)
       deallocate (lreorder)
       deallocate (errmx2)
-      deallocate(qjGmi)
-      deallocate(qkGmi)
-      deallocate(qqjda)
-      deallocate(qqkda)
-      deallocate(yda)
+      deallocate(physprocVars%qjGmi)
+      deallocate(physprocVars%qkGmi)
+      deallocate(physprocVars%qqjda)
+      deallocate(physprocVars%qqkda)
+      deallocate(physprocVars%yda)
 
 
-      deallocate(doCellChem)
-      deallocate(thermalRateConstants)
-      deallocate(photolysisRateConstants)
-      deallocate(surfaceEmissions)
-      deallocate(speciesConst)
+      deallocate(physprocVars%doCellChem)
+      deallocate(physprocVars%thermalRateConstants)
+      deallocate(physprocVars%photolysisRateConstants)
+      deallocate(physprocVars%surfaceEmissions)
+      deallocate(physprocVars%speciesConst)
 
 
 
