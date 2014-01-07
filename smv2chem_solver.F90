@@ -1,41 +1,5 @@
-!-----------------------------------------------------------------------------
-!
-! ROUTINE
-!   doSmv2Solver
-!
-! DESCRIPTION
-!   This is the main control routine for the ordinary differential equation
-!   solver, "Smvgear II" (Sparse Matrix Vectorized Gear-type code).
-! ! ARGUMENTS
-!   doQqjkInchem   : if prQqjk is on, should qqj's & qqk's be determined
-!                      inside the chemistry solver, or outside?
-!   doSurfEmissInChem : do surface emissions inside the chemistry solver, or
-!                      outside?
-!   pr_diag          : print some diagnostic output to screen?
-!   prQqjk          : should the periodic qqjk output file be written?
-!   prSmv2          : should the SmvgearII     output file be written
-!                      (non-parallel mode only)?
-!   loc_proc         : local processor #
-!   numLat             : # of latitudes
-!   numLong            : # of longitudes
-!   numVert            : # of vertical layers
-!   itloop           : # of zones (numLong * numLat * numVert)
-!   prNcPeriod     : NetCDF output period
-!   timeStep              : model time step (s)
-!   doCellChem     : do chemistry for a particular cell?
-!   thermalRateConstants            : thermal    rate constants (units vary)
-!   photolysisRateConstants            : photolysis rate constants (s^-1)
-!   surfaceEmissions            : surface emissions (units?)
-!   speciesConst               : spc conc (molec/cm^3)
-!-----------------------------------------------------------------------------
 
-      program doSmv2Solver
-!  (savedVars, doQqjkInchem, &
-!  doSurfEmissInChem, pr_diag, prQqjk, prSmv2,  &
-!  loc_proc, numLat, numLong, numVert, itloop, prNcPeriod,&
-!  timeStep, doCellChem, thermalRateConstants, photolysisRateConstants, surfaceEmissions, speciesConst, &
-!  yda, qqkda, qqjda, i1, i2, ju1, j2, k1, k2, &
-!  numQks, numQjs, numActive, commuWorld)
+program doSmv2Solver
 
       use GmiSolver_SavedVariables_mod, only : t_Smv2Saved
       use Physproc_mod
@@ -45,30 +9,16 @@
 
 #     include "smv2chem_par.h"
 
-
-!     ----------------------
-!     Argument declarations in GMI
-!     Local variables here
-!     ----------------------
-
       integer :: commuWorld
-
       logical, save :: first = .true.
-!
       type(t_Smv2Saved) :: savedVars
       type(Physproc_type) :: physprocVars
 
-!     ----------------------
-!     Variable declarations.
-!     ----------------------
 
       integer, allocatable :: jreorder(:)
       integer, allocatable :: lreorder(:)
-
       real*8, allocatable  :: errmx2  (:)
 
-
-!     Standalone-only declarations
       character(len=100) :: smv2Chem1Entry
       character(len=100) :: smv2Chem1Exit
       character(len=100) :: smv2Chem2Entry
@@ -77,17 +27,15 @@
       character(len=100) :: physProcExit
       character(:), allocatable :: rankString
       character(:), allocatable :: zeroString
-      integer :: rankSize, i
-      integer :: i1, i2, ju1, j2, k1, k2
 
+      integer :: rankSize
       integer, parameter :: MAX_RANK_SIZE = 4
 
 
-!     ----------------
-!     Begin execution.
-!     ----------------
+      !     ----------------
+      !     Setup area
+      !     ----------------
       call timingInit
-
 
       call get_command_argument(2, length=rankSize)
       if (rankSize .gt. 3) then
@@ -116,76 +64,13 @@
       physProcExit = 'physproc_exit.proc' // zeroString // rankString
 
 
-
-
-
-
+      !     ----------------
+      !    Prepare input data
+      !     ----------------
+      call readPhysprocVars(physprocVars, physProcEntry)
       call initializeSavedVars(savedVars)
       call readSmv1Vars(savedVars,smv2Chem1Entry)
       call readSmv2Vars(savedVars,smv2Chem2Entry)
-
-
-
-      print*, "reading: ", trim(physProcEntry)
-      open(file=trim(physProcEntry),unit=27,form="formatted")
-      read(27,*)
-      read(27,*) i1, i2, ju1, j2, k1, k2
-      read(27,*)
-      read(27,*) physprocVars%numQjo, physprocVars%numQks, physprocVars%numQjs, physprocVars%numActive
-
-      allocate(physprocVars%qjGmi(i1:i2, ju1:j2, k1:k2, physprocVars%numQjo))
-      allocate(physprocVars%qkGmi(i1:i2, ju1:j2, k1:k2, physprocVars%numQks))
-      allocate(physprocVars%qqjda(i1:i2, ju1:j2, k1:k2, physprocVars%numQjs))
-      allocate(physprocVars%qqkda(i1:i2, ju1:j2, k1:k2, physprocVars%numQks))
-      allocate(physprocVars%yda  (i1:i2, ju1:j2, k1:k2, physprocVars%numActive))
-      read(27,*)
-      read(27,*) physprocVars%qjGmi(i1:i2, ju1:j2, k1:k2, 1:physprocVars%numQjo)
-      read(27,*)
-      read(27,*) physprocVars%qkGmi(i1:i2, ju1:j2, k1:k2, 1:physprocVars%numQks)
-      read(27,*)
-      read(27,*) physprocVars%qqjda(i1:i2, ju1:j2, k1:k2, 1:physprocVars%numQjs)
-      read(27,*)
-      read(27,*) physprocVars%qqkda(i1:i2, ju1:j2, k1:k2, 1:physprocVars%numQks)
-      read(27,*)
-      read(27,*) physprocVars%yda  (i1:i2, ju1:j2, k1:k2, 1:physprocVars%numActive)
-      read(27,*)
-      read(27,*) physprocVars%doQqjkInchem
-      read(27,*)
-      read(27,*) physprocVars%doSurfEmissInChem
-      read(27,*)
-      read(27,*) physprocVars%prDiag
-      read(27,*)
-      read(27,*) physprocVars%prQqjk
-      read(27,*)
-      read(27,*) physprocVars%prSmv2
-      read(27,*)
-      read(27,*) physprocVars%localProc
-      read(27,*)
-      read(27,*) physprocVars%numLat, physprocVars%numLong, physprocVars%numVert
-      read(27,*)
-      read(27,*) physprocVars%itloop
-      read(27,*)
-      read(27,*) physprocVars%prNcPeriod
-      read(27,*)
-      read(27,*) physprocVars%timeStep
-
-      allocate(physprocVars%doCellChem(physprocVars%itloop))
-      allocate(physprocVars%thermalRateConstants(physprocVars%itloop, ITHERM))
-      allocate(physprocVars%photolysisRateConstants(physprocVars%itloop, IPHOT))
-      allocate(physprocVars%surfaceEmissions(physprocVars%numLat*physprocVars%numLong, IGAS))
-      allocate(physprocVars%speciesConst(physprocVars%itloop, IGAS))
-
-      read(27,*)
-      read(27,*) physprocVars%doCellChem(1:physprocVars%itloop)
-      read(27,*)
-      read(27,*) physprocVars%thermalRateConstants(:,:)
-      read(27,*)
-      read(27,*) physprocVars%photolysisRateConstants(1:physprocVars%itloop, 1:IPHOT)
-      read(27,*)
-      read(27,*) physprocVars%surfaceEmissions(1:physprocVars%numLat*physprocVars%numLong, 1:IGAS)
-      read(27,*)
-      read(27,*) physprocVars%speciesConst(1:physprocVars%itloop, 1:IGAS)
-      close(27)
 
       if (first) then
          first = .false.
@@ -199,9 +84,9 @@
       allocate (errmx2(physprocVars%itloop))
       jreorder(:) = 0; lreorder(:) = 0
       errmx2  (:) = 0.0d0
-
       commuWorld = 0
 
+      print*, "Calling Physproc"
       call Physproc (savedVars, physprocVars%doQqjkInchem, physprocVars%doSurfEmissInChem, &
                physprocVars%prQqjk, physprocVars%prSmv2, physprocVars%numLat, physprocVars%numLong, physprocVars%numVert, savedVars%ifreord,&
                savedVars%imgas, savedVars%initrogen, savedVars%ioxygen,&
@@ -212,92 +97,27 @@
                savedVars%inewold, savedVars%npphotrat, physprocVars%thermalRateConstants, physprocVars%photolysisRateConstants, &
                physprocVars%surfaceEmissions, jreorder, lreorder, savedVars%csuma,  &
                savedVars%csumc, errmx2, physprocVars%speciesConst, physprocVars%yda, physprocVars%qqkda, physprocVars%qqjda, &
-               i1, i2, ju1, j2, k1, k2, physprocVars%numQks, physprocVars%numQjs, physprocVars%numActive, &
+               physprocVars%i1, physprocVars%i2, physprocVars%ju1, physprocVars%j2, physprocVars%k1, physprocVars%k2, physprocVars%numQks, &
+               physprocVars%numQjs, physprocVars%numActive, &
                commuWorld)
+      print*, "Returned from Physproc"
 
+      !     ----------------
+      !    Write output data and deallocate variables
+      !     ----------------
       call writeSmv2Chem1Exit(smv2Chem1Exit,savedVars)
       call writeSmv2Chem2Exit(smv2Chem2Exit,savedVars)
-
-      print*, "Writing to: ", physProcExit
-      open(file=trim(physProcExit),unit=28,status="replace",form="unformatted")
-
-      write(28) "i1, i2, ju1, j2, k1, k2"
-      write(28) i1, i2, ju1, j2, k1, k2
-      write(28) "num_qjo, num_qks, num_qjs, num_active"
-      write(28) physprocVars%numQjo, physprocVars%numQks, physprocVars%numQjs, physprocVars%numActive
-      write(28) "qjgmi(i1:i2, ju1:j2, k1:k2, num_qjo)"
-      write(28) physprocVars%qjGmi(i1:i2, ju1:j2, k1:k2, 1:physprocVars%numQjo)
-      write(28) "qkgmi(i1:i2, ju1:j2, k1:k2, num_qks)"
-      write(28) physprocVars%qkGmi(:,:,:,:)
-      write(28) "qqjda(i1:i2, ju1:j2, k1:k2, num_qjs)"
-      write(28) physprocVars%qqjda(i1:i2, ju1:j2, k1:k2, 1:physprocVars%numQjs)
-      write(28) "qqkda(i1:i2, ju1:j2, k1:k2, num_qks)"
-      write(28) physprocVars%qqkda(:,:,:,:)
-      write(28) "yda  (i1:i2, ju1:j2, k1:k2, num_active)"
-      write(28) physprocVars%yda  (i1:i2, ju1:j2, k1:k2, 1:physprocVars%numActive)
-      write(28) "do_qqjk_inchem"
-      write(28) physprocVars%doQqjkInchem
-      write(28) "do_semiss_inchem"
-      write(28) physprocVars%doSurfEmissInChem
-      write(28) "pr_diag"
-      write(28) physprocVars%prDiag
-      write(28) "pr_qqjk"
-      write(28) physprocVars%prQqjk
-      write(28) "pr_smv2"
-      write(28) physprocVars%prSmv2
-      write(28) "loc_proc"
-      write(28) physprocVars%localProc
-      write(28) "ilat, ilong, ivert"
-      write(28) physprocVars%numLat, physprocVars%numLong, physprocVars%numVert
-      write(28) "itloop"
-      write(28) physprocVars%itloop
-      write(28) "pr_nc_period"
-      write(28) physprocVars%prNcPeriod
-      write(28) "tdt"
-      write(28) physprocVars%timeStep
-      write(28) "do_cell_chem(itloop)"
-      write(28) physprocVars%doCellChem(1:physprocVars%itloop)
-      write(28) "arate(itloop, ITHERM)"
-      write(28) physprocVars%thermalRateConstants(:,:)
-      write(28) "prate(itloop, IPHOT)"
-      write(28) physprocVars%photolysisRateConstants(1:physprocVars%itloop, 1:IPHOT)
-      write(28) "yemis(ilat*ilong, IGAS)"
-      write(28) physprocVars%surfaceEmissions(1:physprocVars%numLat*physprocVars%numLong, 1:IGAS)
-      write(28) "cx(itloop, IGAS)"
-      write(28) physprocVars%speciesConst(1:physprocVars%itloop, 1:IGAS)
-      close(28)
+      call writePhysprocVars(physprocVars, physProcExit)
 
       deallocate (savedVars%csuma)
       deallocate (savedVars%csumc)
       deallocate (jreorder)
       deallocate (lreorder)
       deallocate (errmx2)
-      deallocate(physprocVars%qjGmi)
-      deallocate(physprocVars%qkGmi)
-      deallocate(physprocVars%qqjda)
-      deallocate(physprocVars%qqkda)
-      deallocate(physprocVars%yda)
-
-
-      deallocate(physprocVars%doCellChem)
-      deallocate(physprocVars%thermalRateConstants)
-      deallocate(physprocVars%photolysisRateConstants)
-      deallocate(physprocVars%surfaceEmissions)
-      deallocate(physprocVars%speciesConst)
-
-
-
-      deallocate(savedVars%enqq1)
-      deallocate(savedVars%enqq2)
-      deallocate(savedVars%enqq3)
-      deallocate(savedVars%conp15)
-      deallocate(savedVars%conpst)
-
-      deallocate(savedVars%aset)
 
       print*, "Exiting doSmv2Solver"
 
-      end program doSmv2Solver
+end program doSmv2Solver
 
 subroutine readSmv2Vars(savedVars,smv2Chem2Entry)
 
@@ -309,256 +129,258 @@ subroutine readSmv2Vars(savedVars,smv2Chem2Entry)
       type(t_Smv2Saved), intent(inOut) :: savedVars
       character(len=100), intent(in) :: smv2Chem2Entry
 
+      integer :: fileNumber
+
       print*, "reading: ", trim(smv2Chem2Entry)
 
 !read smv2chem2 on entry to physproc to be used for standAlone code
-      open(file=trim(smv2Chem2Entry),unit=25,form="formatted")
-      read(25,*)
-      read(25,*) savedVars%ioner
-      read(25,*)
-      read(25,*) savedVars%nallrat
-      read(25,*)
-      read(25,*) savedVars%inorep
-      read(25,*)
-      read(25,*) savedVars%ithrr
-      read(25,*)
-      read(25,*) savedVars%itwor
-      read(25,*)
-      read(25,*) savedVars%nm3bod
-      read(25,*)
-      read(25,*) savedVars%nmair
-      read(25,*)
-      read(25,*) savedVars%nmn2
-      read(25,*)
-      read(25,*) savedVars%nmo2
-      read(25,*)
-      read(25,*) savedVars%nmoth
+      open(file=trim(smv2Chem2Entry),newunit=fileNumber,form="formatted")
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%ioner
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%nallrat
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%inorep
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%ithrr
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%itwor
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%nm3bod
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%nmair
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%nmn2
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%nmo2
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%nmoth
 
-      read(25,*)
-      read(25,*) savedVars%ntrates
-      read(25,*)
-      read(25,*) savedVars%mappl
-      read(25,*)
-      read(25,*) savedVars%lgasbino
-      read(25,*)
-      read(25,*) savedVars%nreacoth
-      read(25,*)
-      read(25,*) savedVars%lgas3bod
-      read(25,*)
-      read(25,*) savedVars%losinacp
-      read(25,*)
-      read(25,*) savedVars%nreac3b
-      read(25,*)
-      read(25,*) savedVars%nreacair
-      read(25,*)
-      read(25,*) savedVars%nreacn2
-      read(25,*)
-      read(25,*) savedVars%nreaco2
-      read(25,*)
-      read(25,*) savedVars%jphotnk
-      read(25,*)
-      read(25,*) savedVars%noldfnew
-      read(25,*)
-      read(25,*) savedVars%irm2
-      read(25,*)
-      read(25,*) savedVars%ischang
-      read(25,*)
-      read(25,*) savedVars%kzthi
-      read(25,*)
-      read(25,*) savedVars%kztlo
-      read(25,*)
-      read(25,*) savedVars%ikztot
-      read(25,*)
-      read(25,*) savedVars%kbh1
-      read(25,*)
-      read(25,*) savedVars%kbh2
-      read(25,*)
-      read(25,*) savedVars%kbh3
-      read(25,*)
-      read(25,*) savedVars%kbh4
-      read(25,*)
-      read(25,*) savedVars%kbh5
-      read(25,*)
-      read(25,*) savedVars%kbl1
-      read(25,*)
-      read(25,*) savedVars%kbl2
-      read(25,*)
-      read(25,*) savedVars%kbl3
-      read(25,*)
-      read(25,*) savedVars%kbl4
-      read(25,*)
-      read(25,*) savedVars%kbl5
-      read(25,*)
-      read(25,*) savedVars%mbh1
-      read(25,*)
-      read(25,*) savedVars%mbh2
-      read(25,*)
-      read(25,*) savedVars%mbh3
-      read(25,*)
-      read(25,*) savedVars%mbh4
-      read(25,*)
-      read(25,*) savedVars%mbh5
-      read(25,*)
-      read(25,*) savedVars%mbl1
-      read(25,*)
-      read(25,*) savedVars%mbl2
-      read(25,*)
-      read(25,*) savedVars%mbl3
-      read(25,*)
-      read(25,*) savedVars%mbl4
-      read(25,*)
-      read(25,*) savedVars%mbl5
-      read(25,*)
-      read(25,*) savedVars%kzeroa
-      read(25,*)
-      read(25,*) savedVars%kzerob
-      read(25,*)
-      read(25,*) savedVars%kzeroc
-      read(25,*)
-      read(25,*) savedVars%kzerod
-      read(25,*)
-      read(25,*) savedVars%kzeroe
-      read(25,*)
-      read(25,*) savedVars%mzeroa
-      read(25,*)
-      read(25,*) savedVars%mzerob
-      read(25,*)
-      read(25,*) savedVars%mzeroc
-      read(25,*)
-      read(25,*) savedVars%mzerod
-      read(25,*)
-      read(25,*) savedVars%mzeroe
-      read(25,*)
-      read(25,*) savedVars%imztot
-      read(25,*)
-      read(25,*) savedVars%ijval
-      read(25,*)
-      read(25,*) savedVars%jzeroa
-      read(25,*)
-      read(25,*) savedVars%idh1
-      read(25,*)
-      read(25,*) savedVars%idh2
-      read(25,*)
-      read(25,*) savedVars%idh3
-      read(25,*)
-      read(25,*) savedVars%idh4
-      read(25,*)
-      read(25,*) savedVars%idh5
-      read(25,*)
-      read(25,*) savedVars%idl1
-      read(25,*)
-      read(25,*) savedVars%idl2
-      read(25,*)
-      read(25,*) savedVars%idl3
-      read(25,*)
-      read(25,*) savedVars%idl4
-      read(25,*)
-      read(25,*) savedVars%idl5
-      read(25,*)
-      read(25,*) savedVars%ikdeca
-      read(25,*)
-      read(25,*) savedVars%ikdecb
-      read(25,*)
-      read(25,*) savedVars%ikdecc
-      read(25,*)
-      read(25,*) savedVars%ikdecd
-      read(25,*)
-      read(25,*) savedVars%ikdece
-      read(25,*)
-      read(25,*) savedVars%kjdeca
-      read(25,*)
-      read(25,*) savedVars%kjdecb
-      read(25,*)
-      read(25,*) savedVars%kjdecc
-      read(25,*)
-      read(25,*) savedVars%kjdecd
-      read(25,*)
-      read(25,*) savedVars%kjdece
-      read(25,*)
-      read(25,*) savedVars%ijthi
-      read(25,*)
-      read(25,*) savedVars%ijtlo
-      read(25,*)
-      read(25,*) savedVars%jarrdiag
-      read(25,*)
-      read(25,*) savedVars%jhiz1
-      read(25,*)
-      read(25,*) savedVars%jloz1
-      read(25,*)
-      read(25,*) savedVars%iarray
-      read(25,*)
-      read(25,*) savedVars%npdhi
-      read(25,*)
-      read(25,*) savedVars%npdlo
-      read(25,*)
-      read(25,*) savedVars%iialpd
-      read(25,*)
-      read(25,*) savedVars%ipospd
-      read(25,*)
-      read(25,*) savedVars%nkpdterm
-      read(25,*)
-      read(25,*) savedVars%nfrhi
-      read(25,*)
-      read(25,*) savedVars%nfrlo
-      read(25,*)
-      read(25,*) savedVars%nplhi
-      read(25,*)
-      read(25,*) savedVars%npllo
-      read(25,*)
-      read(25,*) savedVars%jspcnfr
-      read(25,*)
-      read(25,*) savedVars%jspnpl
-      read(25,*)
-      read(25,*) savedVars%nknfr
-      read(25,*)
-      read(25,*) savedVars%lossra
-      read(25,*)
-      read(25,*) savedVars%lossrb
-      read(25,*)
-      read(25,*) savedVars%lossrc
-      read(25,*)
-      read(25,*) savedVars%lossrd
-      read(25,*)
-      read(25,*) savedVars%lossre
-      read(25,*)
-      read(25,*) savedVars%nph1
-      read(25,*)
-      read(25,*) savedVars%nph2
-      read(25,*)
-      read(25,*) savedVars%nph3
-      read(25,*)
-      read(25,*) savedVars%nph4
-      read(25,*)
-      read(25,*) savedVars%nph5
-      read(25,*)
-      read(25,*) savedVars%npl1
-      read(25,*)
-      read(25,*) savedVars%npl2
-      read(25,*)
-      read(25,*) savedVars%npl3
-      read(25,*)
-      read(25,*) savedVars%npl4
-      read(25,*)
-      read(25,*) savedVars%npl5
-      read(25,*)
-      read(25,*) savedVars%nolosp
-      read(25,*)
-      read(25,*) savedVars%newfold
-      read(25,*)
-      read(25,*) savedVars%nknlosp
-      read(25,*)
-      read(25,*) savedVars%nknphotrt
-      read(25,*)
-      read(25,*) savedVars%abst2
-      read(25,*)
-      read(25,*) savedVars%errmax
-      read(25,*)
-      read(25,*) savedVars%hmaxday
-      read(25,*)
-      read(25,*) savedVars%timeintv
-      read(25,*)
-      read(25,*) savedVars%abtol
-      read(25,*)
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%ntrates
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%mappl
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%lgasbino
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%nreacoth
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%lgas3bod
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%losinacp
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%nreac3b
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%nreacair
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%nreacn2
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%nreaco2
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%jphotnk
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%noldfnew
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%irm2
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%ischang
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%kzthi
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%kztlo
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%ikztot
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%kbh1
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%kbh2
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%kbh3
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%kbh4
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%kbh5
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%kbl1
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%kbl2
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%kbl3
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%kbl4
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%kbl5
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%mbh1
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%mbh2
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%mbh3
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%mbh4
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%mbh5
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%mbl1
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%mbl2
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%mbl3
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%mbl4
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%mbl5
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%kzeroa
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%kzerob
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%kzeroc
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%kzerod
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%kzeroe
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%mzeroa
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%mzerob
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%mzeroc
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%mzerod
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%mzeroe
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%imztot
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%ijval
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%jzeroa
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%idh1
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%idh2
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%idh3
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%idh4
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%idh5
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%idl1
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%idl2
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%idl3
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%idl4
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%idl5
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%ikdeca
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%ikdecb
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%ikdecc
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%ikdecd
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%ikdece
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%kjdeca
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%kjdecb
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%kjdecc
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%kjdecd
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%kjdece
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%ijthi
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%ijtlo
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%jarrdiag
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%jhiz1
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%jloz1
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%iarray
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%npdhi
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%npdlo
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%iialpd
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%ipospd
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%nkpdterm
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%nfrhi
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%nfrlo
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%nplhi
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%npllo
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%jspcnfr
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%jspnpl
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%nknfr
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%lossra
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%lossrb
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%lossrc
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%lossrd
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%lossre
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%nph1
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%nph2
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%nph3
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%nph4
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%nph5
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%npl1
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%npl2
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%npl3
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%npl4
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%npl5
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%nolosp
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%newfold
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%nknlosp
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%nknphotrt
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%abst2
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%errmax
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%hmaxday
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%timeintv
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%abtol
+      read(fileNumber,*)
 
 
 
@@ -569,31 +391,31 @@ subroutine readSmv2Vars(savedVars,smv2Chem2Entry)
       allocate(savedVars%conpst(MORDER))
       allocate(savedVars%pertst2(MORDER, 3))
 
-      read(25,*) savedVars%enqq1
-      read(25,*)
-      read(25,*) savedVars%enqq2
-      read(25,*)
-      read(25,*) savedVars%enqq3
-      read(25,*)
-      read(25,*) savedVars%conp15
-      read(25,*)
-      read(25,*) savedVars%conpst
-      read(25,*)
-      read(25,*) savedVars%pertst2
+      read(fileNumber,*) savedVars%enqq1
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%enqq2
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%enqq3
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%conp15
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%conpst
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%pertst2
 
       allocate(savedVars%aset(10, 8))
       !allocate(savedVars%fracpl (MXCOUNT2))
       !allocate(savedVars%fracnfr(MXCOUNT4))
 
-      read(25,*)
-      read(25,*) savedVars%aset
-      read(25,*)
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%aset
+      read(fileNumber,*)
 
-      read(25,*) savedVars%fracpl(:)
-      read(25,*)
-      read(25,*) savedVars%fracnfr(:)
+      read(fileNumber,*) savedVars%fracpl(:)
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%fracnfr(:)
 
-      close(25)
+      close(fileNumber)
    end subroutine readSmv2Vars
 
  !read smv2chem1 on entry to physproc to be used for standAlone code
@@ -605,43 +427,44 @@ subroutine readSmv2Vars(savedVars,smv2Chem2Entry)
 
       type(t_Smv2Saved), intent(inOut) :: savedVars
       character(len=100), intent(in) :: smv2Chem1Entry
+      integer :: fileNumber
 
       print*, "reading: ", trim(smv2Chem1Entry)
 
-      open(file=trim(smv2Chem1Entry),unit=23,form="formatted")
-      read(23,*)
-      read(23,*) savedVars%ifreord
-      read(23,*)
-      read(23,*) savedVars%ih2o
-      read(23,*)
-      read(23,*) savedVars%imgas
-      read(23,*)
-      read(23,*) savedVars%initrogen
-      read(23,*)
-      read(23,*) savedVars%ioxygen
-      read(23,*)
-      read(23,*) savedVars%kuloop
-      read(23,*)
-      read(23,*) savedVars%lunsmv
-      read(23,*)
-      read(23,*) savedVars%ncs
-      read(23,*)
-      read(23,*) savedVars%jphotrat
-      read(23,*)
-      read(23,*) savedVars%nrates
-      read(23,*)
-      read(23,*) savedVars%ntloopncs
-      read(23,*)
-      read(23,*) savedVars%ntspec
-      read(23,*)
-      read(23,*) savedVars%inewold
-      read(23,*)
-      read(23,*) savedVars%npphotrat
-      read(23,*)
-      read(23,*) savedVars%fracdec
-      read(23,*)
-      read(23,*) savedVars%hmaxnit
-      close(23)
+      open(file=trim(smv2Chem1Entry),newunit=fileNumber,form="formatted")
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%ifreord
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%ih2o
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%imgas
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%initrogen
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%ioxygen
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%kuloop
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%lunsmv
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%ncs
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%jphotrat
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%nrates
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%ntloopncs
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%ntspec
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%inewold
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%npphotrat
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%fracdec
+      read(fileNumber,*)
+      read(fileNumber,*) savedVars%hmaxnit
+      close(fileNumber)
 
   end subroutine readSmv1Vars
 
@@ -1387,6 +1210,14 @@ end subroutine printSmv2Vars
          write(fileNumber) savedVars%fracnfr
 
          close(fileNumber)
+
+         deallocate(savedVars%enqq1)
+         deallocate(savedVars%enqq2)
+         deallocate(savedVars%enqq3)
+         deallocate(savedVars%conp15)
+         deallocate(savedVars%conpst)
+
+         deallocate(savedVars%aset)
 
       end subroutine writeSmv2Chem2Exit
 
