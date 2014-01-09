@@ -115,7 +115,6 @@
 !     Begin execution.
 !     ----------------
 
-   print*, "in smv2chem_diag"
 !     ===============
       if (savedVars%end_period) then
 !     ===============

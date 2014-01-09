@@ -445,7 +445,6 @@
  100  continue
 !     ========
 
-
       idoub     = 2
       nslp      = MBETWEEN
       jrestar   = 0
@@ -470,7 +469,6 @@
           cnew(kloop, jnew) = corig(kloop, jnew)
         end do
       end do
-
 
 !     --------------------------------------------------------------------
 !     Re-enter here if total failure or if restarting with new cell block.
@@ -697,21 +695,15 @@
 !     pertst^2.
 !     -------------------------------------------------------------------
 
-
       if (nqq /= nqqold) then
 
-
         nqqold = nqq
-
         kstep  = nqq + 1
-
         hratio = hratio * savedVars%aset(nqq,1) / asn1
-
         asn1   = savedVars%aset(nqq,1)
         enqq   = savedVars%pertst2(nqq,1) * order
         eup    = savedVars%pertst2(nqq,2) * order
         edwn   = savedVars%pertst2(nqq,3) * order
-
         conp3  = 1.4d0 /  (eup**savedVars%enqq3(nqq))
         conp2  = 1.2d0 / (enqq**savedVars%enqq2(nqq))
         conp1  = 1.3d0 / (edwn**savedVars%enqq1(nqq))
@@ -1073,7 +1065,6 @@
      &  (savedVars, ischan, ktloop, ncsp, cc2, vdiag, gloss)
 
 
-
 !     ----------------------------------------------------------------
 !     Sum up the accumulated error, correct the concentration with the
 !     error, and begin to calculate the rmsnorm of the error relative
@@ -1211,8 +1202,6 @@
 
         end do
 
-
-
 !       =========
         go to 200
 !       =========
@@ -1344,7 +1333,7 @@
             end if
 
  980        format ('Smvgear:  Stopping because of excessive errors.')
-       print*, "Excessive errors"
+            print*, "Excessive errors"
             call GmiPrintError ('Problem in Smvgear', .true., 0, 0, 0, 0, 0.0d0, 0.0d0)
 
           end if
@@ -1776,11 +1765,10 @@
 !     Begin execution.
 !     ----------------
 
-!    Write (6,*) 'Backsub called.'
+!c    Write (6,*) 'Backsub called.'
 
 
       ij = 1
-
 
 
 !     ==========================================
@@ -1920,7 +1908,6 @@
 !     ==============
 
 
-
 !     ---------------------------------------------------------------
 !     Backsub loop # 2.
 !
@@ -1932,14 +1919,11 @@
       ILOOP: do i = ischan, 1, -1
 !     ===========================
 
-
         mzt = savedVars%imztot(i,ncsp)
 
 !       ===================
         MZTIF: if (mzt > 0) then
 !       ===================
-
-
 
           ml5 = savedVars%mbl5(mzt)
           mh5 = savedVars%mbh5(mzt)
@@ -1954,7 +1938,6 @@
 
 !         -- Sum 5 terms at a time. --
 
-
           do mc = ml5, mh5
 
             ij0 = ij
@@ -1964,18 +1947,13 @@
             ij4 = ij + 4
             ij  = ij + 5
 
-
             j0  = savedVars%mzeroa(mc)
             j1  = savedVars%mzerob(mc)
             j2  = savedVars%mzeroc(mc)
             j3  = savedVars%mzerod(mc)
             j4  = savedVars%mzeroe(mc)
 
-
-
             do k = 1, ktloop
-
-
               gloss(k,i) =  &
      &          gloss(k,i) -  &
      &          (cc2(k,ij0) * gloss(k,j0)) -  &
@@ -1986,7 +1964,6 @@
             end do
 
           end do
-
 
 !         -- Sum 4 terms at a time. --
 
@@ -2016,7 +1993,6 @@
 
 !         -- Sum 3 terms at a time. --
 
-
           do mc = ml3, mh3
 
             ij0 = ij
@@ -2040,8 +2016,6 @@
 
 !         -- Sum 2 terms at a time. --
 
-
-
           do mc = ml2, mh2
 
             ij0 = ij
@@ -2059,8 +2033,6 @@
             end do
 
           end do
-
-
 
 !         -- Sum 1 term at a time. --
 
@@ -2082,8 +2054,6 @@
 !       ============
         end if MZTIF
 !       ============
-
-
 
 !       -- Adjust gloss with diagonal element. --
 
