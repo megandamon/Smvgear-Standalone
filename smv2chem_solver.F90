@@ -39,7 +39,15 @@ program doSmv2Solver
 
       call get_command_argument(2, length=rankSize)
       if (rankSize .gt. 3) then
-         print*, "rank must be less than 1000"
+         print*, ""
+         print*, "Usage: ./Do_Smv2_Solver.exe -r processID"
+         print*, ""
+         print*, "e.g. ./Do_Smv2_Solver.exe -r 79 for process # 79"
+         print*, ""
+         print*, "Rules:"
+         print*, "   - Processor decomposition must be less than 1,000"
+         print*, "   - Process IDs must be expressed in fewer than 4 characters"
+         print*, ""
          stop
       end if
 

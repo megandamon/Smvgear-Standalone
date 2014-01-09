@@ -106,8 +106,6 @@
 !     Argument declarations.
 !     ----------------------
 
-
-
       integer, intent(in) :: commuWorld
       integer, intent(in) :: i1, i2, ju1, j2, k1, k2
       integer, intent(in) :: num_qks, num_qjs, num_active
@@ -176,16 +174,6 @@
 !     ----------------
 
 #ifndef nonZeroInd_tracers
-
-
-   !  &   ilong, ivert, ifreord, imgas, initrogen, ioxygen, itloop,  &
-   !  &   kuloop, lunsmv, ncs, fracdec, hmaxnit, pr_nc_period, tdt,  &
-   !  &   do_cell_chem, jphotrat, nrates, ntloopncs, ntspec, inewold,  &
-   !  &   npphotrat, arate, prate, yemis, jreorder, lreorder, csuma,  &
-   !  &   csumc, errmx2, cx, yda, qqkda, qqjda, &
-   !  &   i1, i2, ju1, j2, k1, k2, &
-   !  &   num_qks, num_qjs, num_active, commuWorld
-
 !     --------------------------------------------------------
 !     Can the domain be separated into day and night sections?
 !     --------------------------------------------------------
@@ -230,8 +218,6 @@
       end if
 
 
-
-
       do iday = 1, idaynt
         do ireord = loreord, 2
 
@@ -252,7 +238,6 @@
           end do
 
 
-
 !         ================
           call Solve_Block  &
 !         ================
@@ -266,9 +251,7 @@
      &       commuWorld)
 
 
-
           if (ireord == 1) then
-
 !           =======================
             call Reorder_Grid_Cells  &
 !           =======================
@@ -362,10 +345,8 @@
 !     Begin execution.
 !     ----------------
 
-
+#ifndef nonZeroInd_tracers
       if (idaynt == 1) then
-
-
 
         ntloopuse = 0
 
@@ -378,7 +359,7 @@
 
       else
 
-         ntloopuse = 0
+        ntloopuse = 0
 
         if (iday == 1) then
 
@@ -407,7 +388,6 @@
         end if
 
       end if
-
 
 
       nblockuse = 1 + ntloopuse / (kuloop    + 0.0001d0)
@@ -439,6 +419,7 @@
       jlowvar(nblockuse) = jlooplo
       ktlpvar(nblockuse) = iremain
 
+#endif
 
       return
 
@@ -664,7 +645,6 @@
 !     Begin execution.
 !     ----------------
 
-
       if (DOWRT_SBDIAG) then
 !       ====================================================================
 !        call Mpi_Comm_Rank (commuWorld, proc_num, ierr)
@@ -700,7 +680,6 @@
 !$omp&  private(pratk1, smvdm, vdiag)
 !$omp&  private(rrate, trate, urate)
 
-
 !     ======================
       do kblk = 1, nblockuse
 !     ======================
@@ -719,6 +698,7 @@
 !         -------------------------------------
 !         Set (and rearrange) photofrequencies.
 !         -------------------------------------
+
           do j = 1, jphotrat(ncs)
             np = npphotrat(j,ncs)
             do kloop = 1, ktloop
@@ -750,14 +730,6 @@
 !         ireord = 2 : set chemistry rates and solve equations
 !         --------------------------------------------------------------
 
-!         print*, "itloop: ", itloop
-!         print*, "IGAS: ", IGAS
-!         open(file=trim("cx_beforeCalcrate.out"),unit=28,form="formatted")
-!         write(28,*) "cx(itloop, IGAS)"
-!         write(28,*) cx(1:itloop, 1:IGAS)
-!         close(28)
-
-
 !         =============
           call Calcrate  &
 !         =============
@@ -766,14 +738,6 @@
      &       denair, pratk1, cblk, rrate, trate, nallr, nfdh1, nfdh2,  &
      &       nfdh3, nfdl1, nfdl2, nfdrep, nfdrep1, irma, irmb, irmc,  &
      &       corig, smvdm, savedVars)
-
-         !print*, "itloop: ", itloop
-         !print*, "IGAS: ", IGAS
-         !open(file=trim("cx_afterCalcrate.out"),unit=28,form="formatted")
-         !write(28,*) "cx(itloop, IGAS)"
-         !write(28,*) cx(1:itloop, 1:IGAS)
-         !close(28)
-
 
 !         --------------------
 !         Solve chemical odes.
@@ -792,10 +756,6 @@
      &       urate, yda, qqkda, qqjda, &
      &       i1, i2, ju1, j2, k1, k2, num_qks, num_qjs, num_active)
 
-
-
-
-
 !         -----------------------------------------------------
 !         Replace block concentrations (molec/cm^3) into domain
 !         concentrations, but only for active species.
@@ -803,22 +763,13 @@
 
           if (ireord == 2) then
 
-            !print*, "ntspec(ncs): ", ntspec(ncs)
-            !print*, "numActInActGases()", ntspec(:)
-            !print*, "SK_NACT: ", SK_NACT
-
             do jnew = 1, ntspec(ncs)
               jgas = inewold(jnew,ncs)
 
-              !if (jnew == 1) print*, "jgas: ", jgas
-
               if (jgas <= SK_NACT) then
 
-               !print*, "SMAL2: ", SMAL2
                 do kloop = 1, ktloop
                   jloop          = jreorder(jlooplo+kloop)
-                  !print*, "jloop: ", jloop
-                  !print*, "cnew(kloop,jnew): ", cnew(kloop,jnew)
                   cx(jloop,jgas) = Max (cnew(kloop,jnew), SMAL2)
                 end do
 
@@ -827,13 +778,6 @@
             end do
 
           end if
-
-
-         !open(file=trim("cx_afterSmvgear.out"),unit=28,form="formatted")
-         !write(28,*) "cx(itloop, IGAS)"
-         !write(28,*) cx(1:itloop, 1:IGAS)
-         !close(28)
-
 
 !       ======
         end if
