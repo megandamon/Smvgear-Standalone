@@ -1,0 +1,8 @@
+*.mod
+*.o
+*.proc*
+*.tar
+*~
+/0017
+/Do_Smv2_Solver.exe
+/Smvgear-Standalone-Data
