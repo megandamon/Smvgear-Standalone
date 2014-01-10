@@ -496,7 +496,7 @@
       implicit none
 
 !     ==========================
-!#     include "mpif.h"
+#     include "mpif.h"
 !     ==========================
 #     include "smv2chem_par.h"
 
@@ -647,17 +647,16 @@
 
       if (DOWRT_SBDIAG) then
 !       ====================================================================
-!        call Mpi_Comm_Rank (commuWorld, proc_num, ierr)
-!        proc_num = proc_num + 1  ! change proc_num range from 0->N to 1->N+1
+        call Mpi_Comm_Rank (commuWorld, proc_num, ierr)
+        proc_num = proc_num + 1  ! change proc_num range from 0->N to 1->N+1
 
 !$omp   parallel
 !$      num_thrds = Omp_Get_Num_Threads ( )
 !$omp   end parallel
 
 !$      max_thrds = Omp_Get_Max_Threads ( )
-!!$!$      Write (6,900) proc_num, max_thrds, num_thrds, nblockuse
-!!$!$900   format ('Proc #, Max Thrds, # Thrds, nblockuse:  ', &
-!!$!$&         & i6, i4, i4, i8)
+!$      Write (6,900) proc_num, max_thrds, num_thrds, nblockuse
+900   format ('Proc #, Max Thrds, # Thrds, nblockuse:  ', i6, i4, i4, i8)
 !       ====================================================================
       end if
 
@@ -672,12 +671,12 @@
 !$omp&  schedule(runtime) &
 !$omp&  private(j, jgas, jnew, kblk, np) &
 !$omp&  private(jloop, jlooplo, kloop, ktloop) &
-!$omp&  private(nallr, nfdrep, nfdrep1)&
+!$omp&  private(nallr, nfdrep, nfdrep1) &
 !$omp&  private(nfdh1, nfdh2, nfdh3, nfdl1, nfdl2) &
 !$omp&  private(cblk, cc2, cnew, corig) &
 !$omp&  private(denair, gloss) &
 !$omp&  private(irma, irmb, irmc) &
-!$omp&  private(pratk1, smvdm, vdiag) & 
+!$omp&  private(pratk1, smvdm, vdiag) &
 !$omp&  private(rrate, trate, urate)
 
 !     ======================

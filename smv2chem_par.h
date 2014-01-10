@@ -65,9 +65,26 @@
 !       parameter  (MXBLOCK  =  30)
 !     -------------------------------------------------------------
 
+!     ==========================
+#     if (MSG_OPTION == MSG_MPI)
+!     ==========================
+
         integer, parameter :: KBLOOP   =  1
         integer, parameter :: KULOOPIN =  1
         integer, parameter :: MXBLOCK  = 10000
+
+!     ====
+#     else
+!     ====
+
+        integer, parameter :: KBLOOP   =  1
+        integer, parameter :: KULOOPIN =  1
+        integer, parameter :: MXBLOCK  = 10000
+
+!     =====
+#     endif
+!     =====
+
 
       integer, parameter ::  &
      &  MAXORD   =  5,    & ! max allowable order of integration method

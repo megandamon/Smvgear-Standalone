@@ -8,6 +8,8 @@ program doSmv2Solver
       implicit none
 
 #     include "smv2chem_par.h"
+#     include 'mpif.h'
+
 
       integer :: commuWorld
       logical, save :: first = .true.
@@ -31,11 +33,28 @@ program doSmv2Solver
       integer :: rankSize
       integer, parameter :: MAX_RANK_SIZE = 4
 
-
+      integer mpiError, rc, numTasks
       !     ----------------
       !     Setup area
       !     ----------------
+
       call timingInit
+
+      ! Initialize the MPI library:
+      call MPI_INIT(mpiError)
+      if (mpiError .ne. MPI_SUCCESS) then
+         print *,'Error starting MPI program. Terminating.'
+         call MPI_ABORT(MPI_COMM_WORLD, rc, mpiError)
+      end if
+
+      ! Get the number of processors this job is using:
+      call MPI_COMM_SIZE(MPI_COMM_WORLD, numtasks, mpiError)
+      print*, "numTasks: ", numTasks
+      if (numTasks .gt. 1) then
+         print*, "This driver only accepts numTasks = 1"
+         call MPI_FINALIZE(mpiError)
+         stop
+      endif
 
       call get_command_argument(2, length=rankSize)
       if (rankSize .gt. 3) then
@@ -92,7 +111,8 @@ program doSmv2Solver
       allocate (errmx2(physprocVars%itloop))
       jreorder(:) = 0; lreorder(:) = 0
       errmx2  (:) = 0.0d0
-      commuWorld = 0
+
+      commuWorld = MPI_COMM_WORLD
 
       print*, "Calling Physproc"
       call Physproc (savedVars, physprocVars%doQqjkInchem, physprocVars%doSurfEmissInChem, &
@@ -122,6 +142,9 @@ program doSmv2Solver
       deallocate (jreorder)
       deallocate (lreorder)
       deallocate (errmx2)
+
+      ! Tell the MPI library to release all resources it is using:
+      call MPI_FINALIZE(mpiError)
 
       print*, "Exiting doSmv2Solver"
 
