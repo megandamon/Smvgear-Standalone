@@ -94,6 +94,10 @@ program doSmv2Solver
       !     ----------------
       !    Prepare input data
       !     ----------------
+      if (physprocVars%prDiag) then
+        Write (6,*) 'Attemping to read from files: ', physProcEntry, smv2Chem1Entry, smv2Chem2Entry
+      end if
+
       call readPhysprocVars(physprocVars, physProcEntry)
       call initializeSavedVars(savedVars)
       call readSmv1Vars(savedVars,smv2Chem1Entry)
