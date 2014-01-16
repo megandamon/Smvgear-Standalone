@@ -37,35 +37,35 @@
 !   code).
 !
 ! ARGUMENTS
-!   do_qqjk_inchem   : if pr_qqjk is on, should qqj's & qqk's be determined
+!   doQqjkInChem   : if prQqjk is on, should qqj's & qqk's be determined
 !                      inside the chemistry solver, or outside?
-!   do_semiss_inchem : do surface emissions inside the chemistry solver, or
+!   doSurfEmissInChem : do surface emissions inside the chemistry solver, or
 !                      outside?
-!   pr_qqjk   : should the periodic qqjk output file be written?
-!   pr_smv2   : should the SmvgearII     output file be written
+!   prQqjk   : should the periodic qqjk output file be written?
+!   prSmv2   : should the SmvgearII     output file be written
 !               (non-parallel mode only)?
-!   ilat      : # of latitudes
-!   ilong     : # of longitudes
-!   ivert     : # of vertical layers
-!   ifreord   : if 1, then reorder grid-cells by stiffness
-!   imgas     : array index for air density
-!   initrogen : identifies spc # of nitrogen gas
-!   ioxygen   : identifies spc # of oxygen   gas
-!   itloop    : # of zones (ilong * ilat * ivert)
-!   kuloop    : intended # of grid-cells in a grid-block
-!   lunsmv    : logical unit number to write to when pr_smv2 is true
-!   ncs       : identifies gas chemistry type (1..NCSGAS)
-!   fracdec   : fraction time step is decreased in Smvgear if convergence
+!   numLats      : # of latitudes
+!   numLongs     : # of longitudes
+!   numVert     : # of vertical layers
+!   doReOrder   : if 1, then reorder grid-cells by stiffness
+!   airDensityIndex     : array index for air density
+!   nitrogenSpNum : identifies spc # of nitrogen gas
+!   oxygenSpNum   : identifies spc # of oxygen   gas
+!   numZones    : # of zones (numLongs * numLats * numVert)
+!   numGridCellsInBlock    : intended # of grid-cells in a grid-block
+!   smvUnitNumber    : logical unit number to write to when prSmv2 is true
+!   gasChemistryType       : identifies gas chemistry type (1..NCSGAS)
+!   fractionDecrease   : fraction time step is decreased in Smvgear if convergence
 !               test fails
-!   hmaxnit   : max time step for night all chem (s)
-!   pr_nc_period     : NetCDF output period
-!   tdt       : model time step (s)
-!   do_cell_chem     : do chemistry for a particular cell?
-!   jphotrat  : tbd
-!   nrates    : # of kinetic rxns (non-photo)
-!   ntloopncs : tbd
-!   ntspec    : # of active + inactive gases
-!   inewold   : original spc # of each new jnew spc
+!   maxTimeStepNight   : max time step for night all chem (s)
+!   ncOutPeriod     : NetCDF output period
+!   modelTimeStep       : model time step (s)
+!   doCellChem     : do chemistry for a particular cell?
+!   jPhotRate  : tbd
+!   numKineticRxns    : # of kinetic rxns (non-photo)
+!   ntLoopNcs : tbd
+!   numActInActGases    : # of active + inactive gases
+!   origSpcNumber   : original spc # of each new jnew spc
 !   npphotrat : tbd
 !   arate     : thermal    rate constants (units vary)
 !   prate     : photolysis rate constants (s^-1)
@@ -86,10 +86,10 @@
 !-----------------------------------------------------------------------------
 
       subroutine Physproc  &
-     &  (savedVars, do_qqjk_inchem, do_semiss_inchem, pr_qqjk, pr_smv2, ilat,  &
-     &   ilong, ivert, ifreord, imgas, initrogen, ioxygen, itloop,  &
-     &   kuloop, lunsmv, ncs, fracdec, hmaxnit, pr_nc_period, tdt,  &
-     &   do_cell_chem, jphotrat, nrates, ntloopncs, ntspec, inewold,  &
+     &  (savedVars, doQqjkInChem, doSurfEmissInChem, prQqjk, prSmv2, numLats,  &
+     &   numLongs, numVert, doReOrder, airDensityIndex, nitrogenSpNum, oxygenSpNum, numZones,  &
+     &   numGridCellsInBlock, smvUnitNumber, gasChemistryType, fractionDecrease, maxTimeStepNight, ncOutPeriod, modelTimeStep,  &
+     &   doCellChem, jPhotRate, numKineticRxns, ntLoopNcs, numActInActGases, origSpcNumber,  &
      &   npphotrat, arate, prate, yemis, jreorder, lreorder, csuma,  &
      &   csumc, errmx2, cx, yda, qqkda, qqjda, &
      &   i1, i2, ju1, j2, k1, k2, &
@@ -112,40 +112,40 @@
       real*8 , intent(inout) :: qqjda(i1:i2, ju1:j2, k1:k2, num_qjs)
       real*8 , intent(inout) :: qqkda(i1:i2, ju1:j2, k1:k2, num_qks)
       real*8 , intent(inout) :: yda  (i1:i2, ju1:j2, k1:k2, num_active)
-      logical, intent(in)  :: do_qqjk_inchem
-      logical, intent(in)  :: do_semiss_inchem
-      logical, intent(in)  :: pr_qqjk
-      logical, intent(in)  :: pr_smv2
-      integer, intent(in)  :: ilat, ilong, ivert
-      integer, intent(in)  :: ifreord
-      integer, intent(in)  :: imgas
-      integer, intent(in)  :: initrogen
-      integer, intent(in)  :: ioxygen
-      integer, intent(in)  :: itloop
-      integer, intent(in)  :: kuloop
-      integer, intent(in)  :: lunsmv
-      integer, intent(in)  :: ncs
-      real*8,  intent(in)  :: fracdec
-      real*8,  intent(in)  :: hmaxnit
-      real*8,  intent(in)  :: pr_nc_period
-      real*8,  intent(in)  :: tdt
-      logical, intent(in)  :: do_cell_chem(itloop)
-      integer, intent(in)  :: jphotrat (ICS)
-      integer, intent(in)  :: nrates   (ICS)
-      integer, intent(in)  :: ntloopncs(ICS)
-      integer, intent(in)  :: ntspec   (ICS)
-      integer, intent(in)  :: inewold  (MXGSAER, ICS)
+      logical, intent(in)  :: doQqjkInChem
+      logical, intent(in)  :: doSurfEmissInChem
+      logical, intent(in)  :: prQqjk
+      logical, intent(in)  :: prSmv2
+      integer, intent(in)  :: numLats, numLongs, numVert
+      integer, intent(in)  :: doReOrder
+      integer, intent(in)  :: airDensityIndex
+      integer, intent(in)  :: nitrogenSpNum
+      integer, intent(in)  :: oxygenSpNum
+      integer, intent(in)  :: numZones
+      integer, intent(in)  :: numGridCellsInBlock
+      integer, intent(in)  :: smvUnitNumber
+      integer, intent(in)  :: gasChemistryType
+      real*8,  intent(in)  :: fractionDecrease
+      real*8,  intent(in)  :: maxTimeStepNight
+      real*8,  intent(in)  :: ncOutPeriod
+      real*8,  intent(in)  :: modelTimeStep
+      logical, intent(in)  :: doCellChem(numZones)
+      integer, intent(in)  :: jPhotRate (ICS)
+      integer, intent(in)  :: numKineticRxns   (ICS)
+      integer, intent(in)  :: ntLoopNcs(ICS)
+      integer, intent(in)  :: numActInActGases   (ICS)
+      integer, intent(in)  :: origSpcNumber  (MXGSAER, ICS)
       integer, intent(in)  :: npphotrat(IPHOT,   ICS)
-      real*8,  intent(in)  :: arate    (itloop,  ITHERM)
-      real*8,  intent(in)  :: prate    (itloop,  IPHOT)
-      real*8,  intent(in)  :: yemis    (ilat*ilong, IGAS)
+      real*8,  intent(in)  :: arate    (numZones,  ITHERM)
+      real*8,  intent(in)  :: prate    (numZones,  IPHOT)
+      real*8,  intent(in)  :: yemis    (numLats*numLongs, IGAS)
 
-      integer, intent(inout) :: jreorder(itloop)
-      integer, intent(inout) :: lreorder(itloop)
-      real*8,  intent(inout) :: csuma   (itloop)
-      real*8,  intent(inout) :: csumc   (itloop)
-      real*8,  intent(inout) :: errmx2  (itloop)
-      real*8,  intent(inout) :: cx      (itloop, IGAS)
+      integer, intent(inout) :: jreorder(numZones)
+      integer, intent(inout) :: lreorder(numZones)
+      real*8,  intent(inout) :: csuma   (numZones)
+      real*8,  intent(inout) :: csumc   (numZones)
+      real*8,  intent(inout) :: errmx2  (numZones)
+      real*8,  intent(inout) :: cx      (numZones, IGAS)
 
       type(t_Smv2Saved), intent(inOut) :: savedVars
 
@@ -154,7 +154,7 @@
 !     ----------------------
 
       integer :: idaynt
-      integer :: ifsun      ! 1 => for daytime, 2 => for nighttime
+      integer :: ifSun      ! 1 => for daytime, 2 => for nighttime
       integer :: ireord     ! 1 => reorder grid-cells and blocks for chemistry
                             ! 2 => solve chemistry
       integer :: iday
@@ -179,25 +179,25 @@
 !     --------------------------------------------------------
 
       if (prate(1,1) >= 1.0d-80) then
-        ifsun = 1
+        ifSun = 1
       else
-        ifsun = 2
+        ifSun = 2
       end if
 
       idaynt = 1
 
-      if (ifsun == 1) then
+      if (ifSun == 1) then
 
-        IFSUN1: do jloop = 2, ntloopncs(ncs)
+        IFSUN1: do jloop = 2, ntLoopNcs(gasChemistryType)
           if (prate(jloop,1) < 1.0d-80) then
             idaynt = 2
             exit IFSUN1
           end if
         end do IFSUN1
 
-      else if (ifsun == 2) then
+      else if (ifSun == 2) then
 
-        IFSUN2: do jloop = 2, ntloopncs(ncs)
+        IFSUN2: do jloop = 2, ntLoopNcs(gasChemistryType)
           if (prate(jloop,1) > 1.0d-80) then
             idaynt = 2
             exit IFSUN2
@@ -211,7 +211,7 @@
 !     Reorder cells and blocks then solve chemical odes.
 !     --------------------------------------------------
 
-      if ((ifreord == 1) .and. (itloop > 1)) then
+      if ((doReOrder == 1) .and. (numZones > 1)) then
         loreord = 1
       else
         loreord = 2
@@ -225,8 +225,8 @@
 !           =====================
             call Deter_Block_Size  &
 !           =====================
-     &        (savedVars, iday, idaynt, itloop, kuloop, ncs, do_cell_chem,  &
-     &         ntloopncs, prate, ifsun, nblockuse, ntloopuse, jlowvar,  &
+     &        (savedVars, iday, idaynt, numZones, numGridCellsInBlock, gasChemistryType, doCellChem,  &
+     &         ntLoopNcs, prate, ifSun, nblockuse, ntloopuse, jlowvar,  &
      &         ktlpvar, jreorder)
           else
             nblockuse = nreblock
@@ -241,11 +241,11 @@
 !         ================
           call Solve_Block  &
 !         ================
-     &      (savedVars, do_qqjk_inchem, do_semiss_inchem, pr_qqjk, pr_smv2, ifsun,  &
-     &       ilat, ilong, ivert, imgas, initrogen, ioxygen, ireord,  &
-     &       itloop, lunsmv, nblockuse, ncs, fracdec, hmaxnit,  &
-     &       pr_nc_period, tdt, do_cell_chem, jphotrat, nrates, ntspec,  &
-     &       jlowvar, ktlpvar, inewold, npphotrat, arate, prate, yemis,  &
+     &      (savedVars, doQqjkInChem, doSurfEmissInChem, prQqjk, prSmv2, ifSun,  &
+     &       numLats, numLongs, numVert, airDensityIndex, nitrogenSpNum, oxygenSpNum, ireord,  &
+     &       numZones, smvUnitNumber, nblockuse, gasChemistryType, fractionDecrease, maxTimeStepNight,  &
+     &       ncOutPeriod, modelTimeStep, doCellChem, jPhotRate, numKineticRxns, numActInActGases,  &
+     &       jlowvar, ktlpvar, origSpcNumber, npphotrat, arate, prate, yemis,  &
      &       jreorder, lreorder, errmx2, cx, yda, qqkda, qqjda, &
      &       i1, i2, ju1, j2, k1, k2, num_qks, num_qjs, num_active, &
      &       commuWorld)
@@ -255,7 +255,7 @@
 !           =======================
             call Reorder_Grid_Cells  &
 !           =======================
-     &        (itloop, kuloop, ntloopuse, errmx2, jreorder, csuma,  &
+     &        (numZones, numGridCellsInBlock, ntloopuse, errmx2, jreorder, csuma,  &
      &         nreblock, lreorder, jlowvar, ktlpvar, csumc)
           end if
 
@@ -280,13 +280,13 @@
 ! ARGUMENTS
 !   iday      : tbd
 !   idaynt    : tbd
-!   itloop    : # of zones (ilong * ilat * ivert)
-!   kuloop    : intended # of grid-cells in a grid-block
-!   ncs       : identifies gas chemistry type (1..NCSGAS)
-!   do_cell_chem : do chemistry for a particular cell?
-!   ntloopncs : tbd
+!   numZones    : # of zones (numLongs * numLats * numVert)
+!   numGridCellsInBlock    : intended # of grid-cells in a grid-block
+!   gasChemistryType       : identifies gas chemistry type (1..NCSGAS)
+!   doCellChem : do chemistry for a particular cell?
+!   ntLoopNcs : tbd
 !   prate     : photolysis rate constants (s^-1)
-!   ifsun     : 1 => for daytime, 2 => for nighttime
+!   ifSun     : 1 => for daytime, 2 => for nighttime
 !   nblockuse : # of original blocks
 !   ntloopuse : tbd
 !   jlowvar   : tbd
@@ -296,8 +296,8 @@
 !-----------------------------------------------------------------------------
 
       subroutine Deter_Block_Size  &
-     &  (savedVars, iday, idaynt, itloop, kuloop, ncs, do_cell_chem, ntloopncs,  &
-     &   prate, ifsun, nblockuse, ntloopuse, jlowvar, ktlpvar, jreorder)
+     &  (savedVars, iday, idaynt, numZones, numGridCellsInBlock, gasChemistryType, doCellChem, ntLoopNcs,  &
+     &   prate, ifSun, nblockuse, ntloopuse, jlowvar, ktlpvar, jreorder)
 
       use GmiPrintError_mod, only : GmiPrintError
       use GmiSolver_SavedVariables_mod, only : t_Smv2Saved
@@ -313,19 +313,19 @@
 
       integer, intent(in)  :: iday
       integer, intent(in)  :: idaynt
-      integer, intent(in)  :: itloop
-      integer, intent(in)  :: kuloop
-      integer, intent(in)  :: ncs
-      logical, intent(in)  :: do_cell_chem(itloop)
-      integer, intent(in)  :: ntloopncs(ICS)
-      real*8,  intent(in)  :: prate(itloop, IPHOT)
+      integer, intent(in)  :: numZones
+      integer, intent(in)  :: numGridCellsInBlock
+      integer, intent(in)  :: gasChemistryType
+      logical, intent(in)  :: doCellChem(numZones)
+      integer, intent(in)  :: ntLoopNcs(ICS)
+      real*8,  intent(in)  :: prate(numZones, IPHOT)
 
-      integer, intent(out) :: ifsun
+      integer, intent(out) :: ifSun
       integer, intent(out) :: nblockuse
       integer, intent(out) :: ntloopuse
       integer, intent(out) :: jlowvar (MXBLOCK)
       integer, intent(out) :: ktlpvar (MXBLOCK)
-      integer, intent(inout) :: jreorder(itloop)
+      integer, intent(inout) :: jreorder(numZones)
       type(t_Smv2Saved), intent(inOut) :: savedVars
 
 
@@ -350,8 +350,8 @@
 
         ntloopuse = 0
 
-        do jloop = 1, ntloopncs(ncs)
-          if (do_cell_chem(jloop)) then
+        do jloop = 1, ntLoopNcs(gasChemistryType)
+          if (doCellChem(jloop)) then
             ntloopuse           = ntloopuse + 1
             jreorder(ntloopuse) = jloop
           end if
@@ -363,11 +363,11 @@
 
         if (iday == 1) then
 
-          ifsun = 1
+          ifSun = 1
 
-          do jloop = 1, ntloopncs(ncs)
+          do jloop = 1, ntLoopNcs(gasChemistryType)
             if ((prate(jloop,1) > 1.0d-80) .and.  &
-     &          do_cell_chem(jloop)) then
+     &          doCellChem(jloop)) then
               ntloopuse           = ntloopuse + 1
               jreorder(ntloopuse) = jloop
             end if
@@ -375,11 +375,11 @@
 
         else
 
-          ifsun = 2
+          ifSun = 2
 
-          do jloop = 1, ntloopncs(ncs)
+          do jloop = 1, ntLoopNcs(gasChemistryType)
             if ((prate(jloop,1) < 1.0d-80) .and.  &
-     &          do_cell_chem(jloop)) then
+     &          doCellChem(jloop)) then
               ntloopuse           = ntloopuse + 1
               jreorder(ntloopuse) = jloop
             end if
@@ -390,9 +390,9 @@
       end if
 
 
-      nblockuse = 1 + ntloopuse / (kuloop    + 0.0001d0)
+      nblockuse = 1 + ntloopuse / (numGridCellsInBlock    + 0.0001d0)
       iavblok   = 1 + ntloopuse / (nblockuse + 0.0001d0)
-      iavgsize  = Min (iavblok, kuloop)
+      iavgsize  = Min (iavblok, numGridCellsInBlock)
       jlooplo   = 0
       nblock1   = nblockuse - 1
 
@@ -435,39 +435,39 @@
 !   This routine solves the chemical odes for each block.
 !
 ! ARGUMENTS
-!   do_qqjk_inchem   : if pr_qqjk is on, should qqj's & qqk's be determined
+!   doQqjkInChem   : if prQqjk is on, should qqj's & qqk's be determined
 !                      inside the chemistry solver, or outside?
-!   do_semiss_inchem : do surface emissions inside the chemistry solver, or
+!   doSurfEmissInChem : do surface emissions inside the chemistry solver, or
 !                      outside?
-!   pr_qqjk   : should the periodic qqjk output file be written?
-!   pr_smv2   : should the SmvgearII     output file be written
+!   prQqjk   : should the periodic qqjk output file be written?
+!   prSmv2   : should the SmvgearII     output file be written
 !               (non-parallel mode only)?
-!   ifsun     : 1 => for daytime, 2 => for nighttime
-!   ilat      : # of latitudes
-!   ilong     : # of longitudes
-!   ivert     : # of vertical layers
-!   imgas     : array index for air density
-!   initrogen : identifies spc # of nitrogen gas
-!   ioxygen   : identifies spc # of oxygen   gas
+!   ifSun     : 1 => for daytime, 2 => for nighttime
+!   numLats      : # of latitudes
+!   numLongs     : # of longitudes
+!   numVert     : # of vertical layers
+!   airDensityIndex     : array index for air density
+!   nitrogenSpNum : identifies spc # of nitrogen gas
+!   oxygenSpNum   : identifies spc # of oxygen   gas
 !   ireord    : 1 => reorder grid-cells and blocks for chemistry
 !               2 => solve chemistry
-!   itloop    : # of zones (ilong * ilat * ivert)
-!   lunsmv    : logical unit number to write to when pr_smv2 is true
+!   numZones    : # of zones (numLongs * numLats * numVert)
+!   smvUnitNumber    : logical unit number to write to when prSmv2 is true
 !   nblockuse : (ireord == loreord) => # of original  blocks
 !               (ireord /= loreord) => # of reordered blocks
-!   ncs       : identifies gas chemistry type (1..NCSGAS)
-!   fracdec   : fraction time step is decreased in Smvgear if convergence
+!   gasChemistryType       : identifies gas chemistry type (1..NCSGAS)
+!   fractionDecrease   : fraction time step is decreased in Smvgear if convergence
 !               test fails
-!   hmaxnit   : max time step for night all chem (s)
-!   pr_nc_period     : NetCDF output period
-!   tdt       : model time step (s)
-!   do_cell_chem     : do chemistry for a particular cell?
-!   jphotrat  : tbd
-!   nrates    : # of kinetic rxns (non-photo)
-!   ntspec    : # of active + inactive gases
+!   maxTimeStepNight   : max time step for night all chem (s)
+!   ncOutPeriod     : NetCDF output period
+!   modelTimeStep       : model time step (s)
+!   doCellChem     : do chemistry for a particular cell?
+!   jPhotRate  : tbd
+!   numKineticRxns    : # of kinetic rxns (non-photo)
+!   numActInActGases    : # of active + inactive gases
 !   jlowvar   : tbd
 !   ktlpvar   : tbd
-!   inewold   : original spc # of each new jnew spc
+!   origSpcNumber   : original spc # of each new jnew spc
 !   npphotrat : tbd
 !   arate     : thermal    rate constants (units vary)
 !   prate     : photolysis rate constants (s^-1)
@@ -482,11 +482,11 @@
 !-----------------------------------------------------------------------------
 
       subroutine Solve_Block  &
-     &  (savedVars, do_qqjk_inchem, do_semiss_inchem, pr_qqjk, pr_smv2, ifsun,  &
-     &   ilat, ilong, ivert, imgas, initrogen, ioxygen, ireord,  &
-     &   itloop, lunsmv, nblockuse, ncs, fracdec, hmaxnit,  &
-     &   pr_nc_period, tdt, do_cell_chem, jphotrat, nrates, ntspec,  &
-     &   jlowvar, ktlpvar, inewold, npphotrat, arate, prate, yemis,  &
+     &  (savedVars, doQqjkInChem, doSurfEmissInChem, prQqjk, prSmv2, ifSun,  &
+     &   numLats, numLongs, numVert, airDensityIndex, nitrogenSpNum, oxygenSpNum, ireord,  &
+     &   numZones, smvUnitNumber, nblockuse, gasChemistryType, fractionDecrease, maxTimeStepNight,  &
+     &   ncOutPeriod, modelTimeStep, doCellChem, jPhotRate, numKineticRxns, numActInActGases,  &
+     &   jlowvar, ktlpvar, origSpcNumber, npphotrat, arate, prate, yemis,  &
      &   jreorder, lreorder, errmx2, cx, yda, qqkda, qqjda, &
      &   i1, i2, ju1, j2, k1, k2, num_qks, num_qjs, num_active, &
      &   commuWorld)
@@ -511,40 +511,40 @@
       real*8 , intent(inout) :: qqjda(i1:i2, ju1:j2, k1:k2, num_qjs)
       real*8 , intent(inout) :: qqkda(i1:i2, ju1:j2, k1:k2, num_qks)
       real*8 , intent(inout) :: yda  (i1:i2, ju1:j2, k1:k2, num_active)
-      logical, intent(in)  :: do_qqjk_inchem
-      logical, intent(in)  :: do_semiss_inchem
-      logical, intent(in)  :: pr_qqjk
-      logical, intent(in)  :: pr_smv2
-      integer, intent(in)  :: ifsun
-      integer, intent(in)  :: ilat, ilong, ivert
-      integer, intent(in)  :: imgas
-      integer, intent(in)  :: initrogen
-      integer, intent(in)  :: ioxygen
+      logical, intent(in)  :: doQqjkInChem
+      logical, intent(in)  :: doSurfEmissInChem
+      logical, intent(in)  :: prQqjk
+      logical, intent(in)  :: prSmv2
+      integer, intent(in)  :: ifSun
+      integer, intent(in)  :: numLats, numLongs, numVert
+      integer, intent(in)  :: airDensityIndex
+      integer, intent(in)  :: nitrogenSpNum
+      integer, intent(in)  :: oxygenSpNum
       integer, intent(in)  :: ireord
-      integer, intent(in)  :: itloop
-      integer, intent(in)  :: lunsmv
+      integer, intent(in)  :: numZones
+      integer, intent(in)  :: smvUnitNumber
       integer, intent(in)  :: nblockuse
-      integer, intent(in)  :: ncs
-      real*8,  intent(in)  :: fracdec
-      real*8,  intent(in)  :: hmaxnit
-      real*8,  intent(in)  :: pr_nc_period
-      real*8,  intent(in)  :: tdt
-      logical, intent(in)  :: do_cell_chem(itloop)
-      integer, intent(in)  :: jphotrat (ICS)
-      integer, intent(in)  :: nrates   (ICS)
-      integer, intent(in)  :: ntspec   (ICS)
+      integer, intent(in)  :: gasChemistryType
+      real*8,  intent(in)  :: fractionDecrease
+      real*8,  intent(in)  :: maxTimeStepNight
+      real*8,  intent(in)  :: ncOutPeriod
+      real*8,  intent(in)  :: modelTimeStep
+      logical, intent(in)  :: doCellChem(numZones)
+      integer, intent(in)  :: jPhotRate (ICS)
+      integer, intent(in)  :: numKineticRxns   (ICS)
+      integer, intent(in)  :: numActInActGases   (ICS)
       integer, intent(in)  :: jlowvar  (MXBLOCK)
       integer, intent(in)  :: ktlpvar  (MXBLOCK)
-      integer, intent(in)  :: inewold  (MXGSAER, ICS)
+      integer, intent(in)  :: origSpcNumber  (MXGSAER, ICS)
       integer, intent(in)  :: npphotrat(IPHOT,   ICS)
-      real*8,  intent(in)  :: arate    (itloop,  ITHERM)
-      real*8,  intent(in)  :: prate    (itloop,  IPHOT)
-      real*8,  intent(in)  :: yemis    (ilat*ilong, IGAS)
+      real*8,  intent(in)  :: arate    (numZones,  ITHERM)
+      real*8,  intent(in)  :: prate    (numZones,  IPHOT)
+      real*8,  intent(in)  :: yemis    (numLats*numLongs, IGAS)
 
-      integer, intent(inout) :: jreorder(itloop)
-      integer, intent(inout) :: lreorder(itloop)
-      real*8,  intent(inout) :: errmx2  (itloop)
-      real*8,  intent(inout) :: cx      (itloop, IGAS)
+      integer, intent(inout) :: jreorder(numZones)
+      integer, intent(inout) :: lreorder(numZones)
+      real*8,  intent(inout) :: errmx2  (numZones)
+      real*8,  intent(inout) :: cx      (numZones, IGAS)
 
       type(t_Smv2Saved), intent(inOut) :: savedVars
 
@@ -698,8 +698,8 @@
 !         Set (and rearrange) photofrequencies.
 !         -------------------------------------
 
-          do j = 1, jphotrat(ncs)
-            np = npphotrat(j,ncs)
+          do j = 1, jPhotRate(gasChemistryType)
+            np = npphotrat(j,gasChemistryType)
             do kloop = 1, ktloop
               jloop           = lreorder(jlooplo+kloop)
               pratk1(kloop,j) = prate(jloop,np)
@@ -715,7 +715,7 @@
 !         later is used for another purpose.
 !         -------------------------------------------------------
 
-          do j = 1, nrates(ncs)
+          do j = 1, numKineticRxns(gasChemistryType)
             do kloop = 1, ktloop
               jloop            = lreorder(jlooplo+kloop)
               urate(kloop,j,1) = arate(jloop,j)
@@ -732,8 +732,8 @@
 !         =============
           call Calcrate  &
 !         =============
-     &      (ifsun, imgas, initrogen, ioxygen, itloop, jlooplo,  &
-     &       ktloop, ncs, jreorder, nrates, ntspec, cx, urate,  &
+     &      (ifSun, airDensityIndex, nitrogenSpNum, oxygenSpNum, numZones, jlooplo,  &
+     &       ktloop, gasChemistryType, jreorder, numKineticRxns, numActInActGases, cx, urate,  &
      &       denair, pratk1, cblk, rrate, trate, nallr, nfdh1, nfdh2,  &
      &       nfdh3, nfdl1, nfdl2, nfdrep, nfdrep1, irma, irmb, irmc,  &
      &       corig, smvdm, savedVars)
@@ -745,12 +745,12 @@
 !         ============
           call Smvgear  &
 !         ============
-     &      (savedVars, do_qqjk_inchem, do_semiss_inchem, pr_qqjk, pr_smv2,  &
-     &       ifsun, ilat, ilong, ivert, ireord, itloop, jlooplo,  &
-     &       ktloop, lunsmv, nallr, ncs, nfdh2, nfdh3, nfdl1, nfdl2,  &
-     &       nfdrep, nfdrep1, fracdec, hmaxnit, pr_nc_period, tdt,  &
-     &       do_cell_chem, irma, irmb, irmc, jreorder, jphotrat,  &
-     &       ntspec, inewold, denair, corig, pratk1, yemis, smvdm,  &
+     &      (savedVars, doQqjkInChem, doSurfEmissInChem, prQqjk, prSmv2,  &
+     &       ifSun, numLats, numLongs, numVert, ireord, numZones, jlooplo,  &
+     &       ktloop, smvUnitNumber, nallr, gasChemistryType, nfdh2, nfdh3, nfdl1, nfdl2,  &
+     &       nfdrep, nfdrep1, fractionDecrease, maxTimeStepNight, ncOutPeriod, modelTimeStep,  &
+     &       doCellChem, irma, irmb, irmc, jreorder, jPhotRate,  &
+     &       numActInActGases, origSpcNumber, denair, corig, pratk1, yemis, smvdm,  &
      &       nfdh1, errmx2, cc2, cnew, gloss, vdiag, rrate, trate,  &
      &       urate, yda, qqkda, qqjda, &
      &       i1, i2, ju1, j2, k1, k2, num_qks, num_qjs, num_active)
@@ -762,8 +762,8 @@
 
           if (ireord == 2) then
 
-            do jnew = 1, ntspec(ncs)
-              jgas = inewold(jnew,ncs)
+            do jnew = 1, numActInActGases(gasChemistryType)
+              jgas = origSpcNumber(jnew,gasChemistryType)
 
               if (jgas <= SK_NACT) then
 
@@ -814,17 +814,17 @@
 !   for gas-phase chemical reactions.
 !
 ! ARGUMENTS
-!   ifsun     : 1 => for daytime, 2 => for nighttime
-!   imgas     : array index for air density
-!   initrogen : identifies spc # of nitrogen gas
-!   ioxygen   : identifies spc # of oxygen   gas
-!   itloop    : # of zones (ilong * ilat * ivert)
+!   ifSun     : 1 => for daytime, 2 => for nighttime
+!   airDensityIndex     : array index for air density
+!   nitrogenSpNum : identifies spc # of nitrogen gas
+!   oxygenSpNum   : identifies spc # of oxygen   gas
+!   numZones    : # of zones (numLongs * numLats * numVert)
 !   jlooplo   : low ntloop grid-cell - 1 in a grid-block
 !   ktloop    : # of grid-cells in a grid-block
-!   ncs       : identifies gas chemistry type (1..NCSGAS)
+!   gasChemistryType       : identifies gas chemistry type (1..NCSGAS)
 !   jreorder  : gives original grid-cell from re-ordered grid-cell
-!   nrates    : # of kinetic rxns (non-photo)
-!   ntspec    : # of active + inactive gases
+!   numKineticRxns    : # of kinetic rxns (non-photo)
+!   numActInActGases    : # of active + inactive gases
 !   cx        : spc conc (molec/cm^3)
 !   urate     : term of Jacobian (J) = partial derivative
 !   denair    : density of air  (molec/cm^3)
@@ -851,8 +851,8 @@
 !-----------------------------------------------------------------------------
 
       subroutine Calcrate  &
-     &  (ifsun, imgas, initrogen, ioxygen, itloop, jlooplo, ktloop,  &
-     &   ncs, jreorder, nrates, ntspec, cx, urate, denair, pratk1,  &
+     &  (ifSun, airDensityIndex, nitrogenSpNum, oxygenSpNum, numZones, jlooplo, ktloop,  &
+     &   gasChemistryType, jreorder, numKineticRxns, numActInActGases, cx, urate, denair, pratk1,  &
      &   cblk, rrate, trate, nallr, nfdh1, nfdh2, nfdh3, nfdl1, nfdl2,  &
      &   nfdrep, nfdrep1, irma, irmb, irmc, corig, smvdm, savedVars)
 
@@ -868,18 +868,18 @@
 !     Argument declarations.
 !     ----------------------
 
-      integer, intent(in)  :: ifsun
-      integer, intent(in)  :: imgas
-      integer, intent(in)  :: initrogen
-      integer, intent(in)  :: ioxygen
-      integer, intent(in)  :: itloop
+      integer, intent(in)  :: ifSun
+      integer, intent(in)  :: airDensityIndex
+      integer, intent(in)  :: nitrogenSpNum
+      integer, intent(in)  :: oxygenSpNum
+      integer, intent(in)  :: numZones
       integer, intent(in)  :: jlooplo
       integer, intent(in)  :: ktloop
-      integer, intent(in)  :: ncs
-      integer, intent(in)  :: jreorder(itloop)
-      integer, intent(in)  :: nrates  (ICS)
-      integer, intent(in)  :: ntspec  (ICS)
-      real*8,  intent(in)  :: cx      (itloop, IGAS)
+      integer, intent(in)  :: gasChemistryType
+      integer, intent(in)  :: jreorder(numZones)
+      integer, intent(in)  :: numKineticRxns  (ICS)
+      integer, intent(in)  :: numActInActGases  (ICS)
+      real*8,  intent(in)  :: cx      (numZones, IGAS)
       real*8,  intent(in)  :: urate   (KBLOOP, NMTRATE, 3)
 
       real*8,  intent(inout) :: denair(ktloop)
@@ -909,8 +909,8 @@
       integer :: jnew
       integer :: jold            ! = mappl(jold) for inactive spc
       integer :: kloop
-      integer :: ncsp            ! ncs       => for daytime   gas chemistry
-                                 ! ncs + ICS => for nighttime gas chemistry
+      integer :: ncsp            ! gasChemistryType       => for daytime   gas chemistry
+                                 ! gasChemistryType + ICS => for nighttime gas chemistry
       integer :: nfdl0           ! nfdh1 + 1
       integer :: nh, nk, nkn
 
@@ -926,7 +926,7 @@
 !     Load kinetic reaction rates.
 !     ----------------------------
 
-      do nk = 1, nrates(ncs)
+      do nk = 1, numKineticRxns(gasChemistryType)
         do kloop = 1, ktloop
           rrate(kloop,nk) = urate(kloop,nk,1)
         end do
@@ -937,9 +937,9 @@
 !     Place large domain gas array (molec/cm^3) into smaller block array.
 !     -------------------------------------------------------------------
 
-      do jold = 1, ntspec(ncs)
+      do jold = 1, numActInActGases(gasChemistryType)
 
-        jnew = savedVars%mappl(jold,ncs)
+        jnew = savedVars%mappl(jold,gasChemistryType)
 
         do kloop = 1, ktloop
 
@@ -953,9 +953,9 @@
 !         Load third body number densities.
 !         ---------------------------------
 
-          if (initrogen > 0) concn2(kloop) = cx(jloop,initrogen)
-          if (ioxygen   > 0) conco2(kloop) = cx(jloop,ioxygen)
-          if (imgas     > 0) denair(kloop) = cx(jloop,imgas)
+          if (nitrogenSpNum > 0) concn2(kloop) = cx(jloop,nitrogenSpNum)
+          if (oxygenSpNum   > 0) conco2(kloop) = cx(jloop,oxygenSpNum)
+          if (airDensityIndex     > 0) denair(kloop) = cx(jloop,airDensityIndex)
 
         end do
 
@@ -967,22 +967,22 @@
 !     (either M, O2, N2, or any active or inactive species).
 !     ------------------------------------------------------
 
-      do i = 1, savedVars%nmair(ncs)
-        nk = savedVars%nreacair(i,ncs)
+      do i = 1, savedVars%nmair(gasChemistryType)
+        nk = savedVars%nreacair(i,gasChemistryType)
         do kloop = 1, ktloop
            rrate(kloop,nk) = rrate(kloop,nk) * denair(kloop)
         end do
       end do
 
-      do i = 1, savedVars%nmo2(ncs)
-        nk = savedVars%nreaco2(i,ncs)
+      do i = 1, savedVars%nmo2(gasChemistryType)
+        nk = savedVars%nreaco2(i,gasChemistryType)
         do kloop = 1, ktloop
           rrate(kloop,nk) = rrate(kloop,nk) * conco2(kloop)
         end do
       end do
 
-      do i = 1, savedVars%nmn2(ncs)
-        nk = savedVars%nreacn2(i,ncs)
+      do i = 1, savedVars%nmn2(gasChemistryType)
+        nk = savedVars%nreacn2(i,gasChemistryType)
         do kloop = 1, ktloop
           rrate(kloop,nk) = rrate(kloop,nk) * concn2(kloop)
         end do
@@ -994,9 +994,9 @@
 !     (e.g., H2O); multiply by other inactive concentrations later.
 !     ---------------------------------------------------------------
 
-      do i = 1, savedVars%nm3bod(ncs)
-        nk   = savedVars%nreac3b (i,ncs)
-        jold = savedVars%lgas3bod(i,ncs)
+      do i = 1, savedVars%nm3bod(gasChemistryType)
+        nk   = savedVars%nreac3b (i,gasChemistryType)
+        jold = savedVars%lgas3bod(i,gasChemistryType)
         do kloop = 1, ktloop
           rrate(kloop,nk) = rrate(kloop,nk) * cblk(kloop,jold)
         end do
@@ -1008,9 +1008,9 @@
 !     This loop must occur after equilibrium reactions.
 !     -----------------------------------------------------------
 
-      do i = 1, savedVars%nmoth(ncs)
-        nk   = savedVars%nreacoth(i,ncs)
-        jold = savedVars%lgasbino(i,ncs)
+      do i = 1, savedVars%nmoth(gasChemistryType)
+        nk   = savedVars%nreacoth(i,gasChemistryType)
+        jold = savedVars%lgasbino(i,gasChemistryType)
         do kloop = 1, ktloop
           rrate(kloop,nk) = rrate(kloop,nk) * cblk(kloop,jold)
        end do
@@ -1021,21 +1021,21 @@
 !     Reorder rrate array.
 !     --------------------
 
-      nfdh3   = savedVars%ithrr(ncs)
+      nfdh3   = savedVars%ithrr(gasChemistryType)
       nfdl2   = nfdh3  + 1
-      nfdrep  = savedVars%inorep(ncs)
+      nfdrep  = savedVars%inorep(gasChemistryType)
       nfdrep1 = nfdrep + 1
-      nfdh2   = nfdh3  + savedVars%itwor(ncs)
+      nfdh2   = nfdh3  + savedVars%itwor(gasChemistryType)
       nfdl1   = nfdh2  + 1
-      nfdh1   = nfdh2  + savedVars%ioner(ncs)
+      nfdh1   = nfdh2  + savedVars%ioner(gasChemistryType)
       nfdl0   = nfdh1  + 1
-      nallr   = savedVars%nallrat(ncs)
+      nallr   = savedVars%nallrat(gasChemistryType)
 
       do nkn = 1, nallr
-        nk = savedVars%noldfnew(nkn,ncs)
-        irma(nkn) = savedVars%irm2(1,nk,ncs)
-        irmb(nkn) = savedVars%irm2(2,nk,ncs)
-        irmc(nkn) = savedVars%irm2(3,nk,ncs)
+        nk = savedVars%noldfnew(nkn,gasChemistryType)
+        irma(nkn) = savedVars%irm2(1,nk,gasChemistryType)
+        irmb(nkn) = savedVars%irm2(2,nk,gasChemistryType)
+        irmc(nkn) = savedVars%irm2(3,nk,gasChemistryType)
       end do
 
 
@@ -1043,14 +1043,14 @@
 !     trate here used as a dummy array.
 !     ---------------------------------
 
-      do nk = 1, savedVars%ntrates(ncs)
+      do nk = 1, savedVars%ntrates(gasChemistryType)
         do kloop = 1, ktloop
           trate(kloop,nk) = rrate(kloop,nk)
         end do
       end do
 
       do nkn = 1, nallr
-        nk = savedVars%noldfnew(nkn,ncs)
+        nk = savedVars%noldfnew(nkn,gasChemistryType)
         do kloop = 1, ktloop
           rrate(kloop,nkn) = trate(kloop,nk)
         end do
@@ -1076,12 +1076,12 @@
 !     rate does not need to be multiplied later by concentration.
 !     ---------------------------------------------------------------
 
-      ncsp = (ifsun - 1) * ICS + ncs
+      ncsp = (ifSun - 1) * ICS + gasChemistryType
 
       do i = 1, savedVars%nolosp(ncsp)
-        nk   = savedVars%nknlosp(i,ncs)
-        j    = savedVars%jphotnk(nk,ncs)
-        jold = savedVars%losinacp(i,ncs)
+        nk   = savedVars%nknlosp(i,gasChemistryType)
+        j    = savedVars%jphotnk(nk,gasChemistryType)
+        jold = savedVars%losinacp(i,gasChemistryType)
         do kloop = 1, ktloop
           pratk1(kloop,j)  = pratk1(kloop,j) * cblk(kloop,jold)
         end do
@@ -1111,8 +1111,8 @@
 !   Smvgear:  denotes stiffness (larger value => more stiff).
 !
 ! ARGUMENTS
-!   itloop    : # of zones (ilong * ilat * ivert)
-!   kuloop    : intended # of grid-cells in a grid-block
+!   numZones    : # of zones (numLongs * numLats * numVert)
+!   numGridCellsInBlock    : intended # of grid-cells in a grid-block
 !   ntloopuse : tbd
 !   errmx2    : tbd
 !   jreorder  : gives original grid-cell from re-ordered grid-cell
@@ -1128,7 +1128,7 @@
 !-----------------------------------------------------------------------------
 
       subroutine Reorder_Grid_Cells  &
-     &  (itloop, kuloop, ntloopuse, errmx2, jreorder, csuma,  &
+     &  (numZones, numGridCellsInBlock, ntloopuse, errmx2, jreorder, csuma,  &
      &   nreblock, lreorder, jlowvar, ktlpvar, csumc)
 
       implicit none
@@ -1140,19 +1140,19 @@
 !     Argument declarations.
 !     ----------------------
 
-      integer, intent(in)  :: itloop
-      integer, intent(in)  :: kuloop
+      integer, intent(in)  :: numZones
+      integer, intent(in)  :: numGridCellsInBlock
       integer, intent(in)  :: ntloopuse
-      real*8,  intent(in)  :: errmx2(itloop)
+      real*8,  intent(in)  :: errmx2(numZones)
 
-      integer, intent(inout) :: jreorder(itloop)
+      integer, intent(inout) :: jreorder(numZones)
 
       integer, intent(out) :: nreblock
-      integer, intent(out) :: lreorder(itloop)
+      integer, intent(out) :: lreorder(numZones)
       integer, intent(out) :: jlowvar (MXBLOCK)
       integer, intent(out) :: ktlpvar (MXBLOCK)
-      real*8,  intent(out) :: csuma(itloop)
-      real*8,  intent(out) :: csumc(itloop)
+      real*8,  intent(out) :: csuma(numZones)
+      real*8,  intent(out) :: csumc(numZones)
 
 
 !     ----------------------
@@ -1290,10 +1290,10 @@
 
       if (ncellrow /= 0) then
 
-        nblockrow = 1 + (ncellrow / (kuloop + 0.0001d0))
+        nblockrow = 1 + (ncellrow / (numGridCellsInBlock + 0.0001d0))
 
         iavblok   = 1 + (ncellrow / (nblockrow + 0.0001d0))
-        iavgsize  = Min (iavblok, kuloop)
+        iavgsize  = Min (iavblok, numGridCellsInBlock)
         nblock1   = nblockrow - 1
 
         do kblk = 1, nblock1
