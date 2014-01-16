@@ -186,7 +186,7 @@
       else
         ifSun = 2
       end if
-      print*, "First cell check, ifSun = ", ifSun
+      !print*, "First cell check, ifSun = ", ifSun
 
       ! The can replace code block above
       isDaytimeInFirstCell = (prate(1,1) >= PHOTOLYSIS_THRESHOLD)
@@ -203,7 +203,7 @@
         ifSun1: do jloop = 2, ntLoopNcs(gasChemistryType)
           if (prate(jloop,1) .lt. PHOTOLYSIS_THRESHOLD) then
             idaynt = 2
-            print*, "ifSun = 1 and idaynt flipped"
+            !print*, "ifSun = 1 and idaynt flipped"
             exit ifSun1
           end if
         end do ifSun1
@@ -218,7 +218,7 @@
         ifSun2: do jloop = 2, ntLoopNcs(gasChemistryType)
           if (prate(jloop,1) .gt. PHOTOLYSIS_THRESHOLD) then
             idaynt = 2
-            print*, "ifSun = 2 and idaynt flipped"
+            !print*, "ifSun = 2 and idaynt flipped"
             exit ifSun2
           end if
         end do ifSun2
@@ -431,7 +431,7 @@
 !c      Write (6,*) 'nblockuse_max:  ', savedVars%nblockuse_max
       end if
 
-      print*, "nblockuse_max: ", savedVars%nblockuse_max
+      !print*, "nblockuse_max: ", savedVars%nblockuse_max
 
       if (savedVars%nblockuse_max > MXBLOCK) then
         Write (6,*) 'nblockuse > MXBLOCK', nblockuse

@@ -506,7 +506,7 @@
       mechanismObject%rateConstants = rrate
       mechanismObject%numActiveReactants = nallr
 
-   print*, "calling velocity"
+   !print*, "calling velocity"
       call velocity (mechanismObject, num1stOEqnsSolve, ncsp, cnew, gloss, trate, nfdh1, savedVars)
 
       numCallsVelocity = numCallsVelocity + 1
@@ -637,7 +637,7 @@
         do kloop = 1, ktloop
           errmx2(jlooplo+kloop) = dely(kloop)
         end do
-   print*, "leaving smvgear"
+   !print*, "leaving smvgear"
         return
 
 
@@ -1013,7 +1013,7 @@
  300  continue
 !     ========
 
-   print*, "in 300, evaluating first derivative"
+!   print*, "in 300, evaluating first derivative"
 
      call velocity (mechanismObject, num1stOEqnsSolve, ncsp, cnew, gloss, trate, nfdh1, savedVars)
      numCallsVelocity = numCallsVelocity + 1
@@ -1377,7 +1377,7 @@
         if (pr_qqjk .and. do_qqjk_inchem) then
           xtimestep = xelaps - told
 
-      print*, "about to call Do_Smv2_Diag"
+!      print*, "about to call Do_Smv2_Diag"
 !         =================
           call Do_Smv2_Diag  &
 !         =================
@@ -1452,7 +1452,7 @@
 !       ---------------------------------------------------
 
         timremain = chemTimeInterval - xelaps
-   print*, "checking time interval"
+!   print*, "checking time interval"
         if (timremain <= 1.0d-06) return
 
 !       -------------------------------------------------------------------
