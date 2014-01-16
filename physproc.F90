@@ -168,6 +168,9 @@
       integer :: jlowvar(MXBLOCK)
       integer :: ktlpvar(MXBLOCK)
 
+      real*8, parameter :: PHOTOLYSIS_THRESHOLD = 1.0d-80
+      logical :: isDaytimeInFirstCell, isDaytime, dayAndNight
+      integer ::  isDaytimeInFirstCell_I, isDaytime_I, dayAndNight_I
 
 !     ----------------
 !     Begin execution.
@@ -178,45 +181,69 @@
 !     Can the domain be separated into day and night sections?
 !     --------------------------------------------------------
 
-      if (prate(1,1) >= 1.0d-80) then
+      if (prate(1,1) >= PHOTOLYSIS_THRESHOLD) then
         ifSun = 1
       else
         ifSun = 2
       end if
+      print*, "First cell check, ifSun = ", ifSun
 
+      ! The can replace code block above
+      isDaytimeInFirstCell = (prate(1,1) >= PHOTOLYSIS_THRESHOLD)
+      ! TODO MRD: isDayTimeInFirstCell = T should be equivalent to 1 (see ifSun)
+
+!     --------------------------------------------------------
+!     If first cell is day time, and another cell is not, then
+!     set idaynt to indicate day and night (idaynt=2)
+!     --------------------------------------------------------
       idaynt = 1
 
       if (ifSun == 1) then
 
-        IFSUN1: do jloop = 2, ntLoopNcs(gasChemistryType)
-          if (prate(jloop,1) < 1.0d-80) then
+        ifSun1: do jloop = 2, ntLoopNcs(gasChemistryType)
+          if (prate(jloop,1) .lt. PHOTOLYSIS_THRESHOLD) then
             idaynt = 2
-            exit IFSUN1
+            print*, "ifSun = 1 and idaynt flipped"
+            exit ifSun1
           end if
-        end do IFSUN1
+        end do ifSun1
+
+!     --------------------------------------------------------
+!     If first cell is night time, and another cell is not, then
+!     set idaynt to indicate day and night (idaynt=2)
+!     --------------------------------------------------------
 
       else if (ifSun == 2) then
 
-        IFSUN2: do jloop = 2, ntLoopNcs(gasChemistryType)
-          if (prate(jloop,1) > 1.0d-80) then
+        ifSun2: do jloop = 2, ntLoopNcs(gasChemistryType)
+          if (prate(jloop,1) .gt. PHOTOLYSIS_THRESHOLD) then
             idaynt = 2
-            exit IFSUN2
+            print*, "ifSun = 2 and idaynt flipped"
+            exit ifSun2
           end if
-        end do IFSUN2
+        end do ifSun2
 
       end if
+
+      ! The can replace the two code blocks above
+      dayAndNight = .false. ! unless ...
+      do jloop = 2, ntLoopNcs(gasChemistryType)
+        isDaytime = (prate(jloop,1) >= PHOTOLYSIS_THRESHOLD)
+        if (isDaytime .neqv. isDaytimeInFirstCell) then
+            dayAndNight = .true.
+            exit
+        end if
+      end do
+      ! TODO MRD: dayAndNight = .true. should be equivalent to 2 (see idaynt)
 
 
 !     --------------------------------------------------
 !     Reorder cells and blocks then solve chemical odes.
 !     --------------------------------------------------
-
+      loreord = 2
       if ((doReOrder == 1) .and. (numZones > 1)) then
         loreord = 1
-      else
-        loreord = 2
       end if
-
 
       do iday = 1, idaynt
         do ireord = loreord, 2
@@ -340,6 +367,8 @@
       integer :: kblk
       integer :: nblock1
 
+      integer, save :: nblockuse_max = -1
+      real*8, parameter :: PHOTOLYSIS_THRESHOLD = 1.0d-80
 
 !     ----------------
 !     Begin execution.
@@ -366,7 +395,7 @@
           ifSun = 1
 
           do jloop = 1, ntLoopNcs(gasChemistryType)
-            if ((prate(jloop,1) > 1.0d-80) .and.  &
+            if ((prate(jloop,1) > PHOTOLYSIS_THRESHOLD) .and.  &
      &          doCellChem(jloop)) then
               ntloopuse           = ntloopuse + 1
               jreorder(ntloopuse) = jloop
@@ -378,7 +407,7 @@
           ifSun = 2
 
           do jloop = 1, ntLoopNcs(gasChemistryType)
-            if ((prate(jloop,1) < 1.0d-80) .and.  &
+            if ((prate(jloop,1) < PHOTOLYSIS_THRESHOLD) .and.  &
      &          doCellChem(jloop)) then
               ntloopuse           = ntloopuse + 1
               jreorder(ntloopuse) = jloop
@@ -401,6 +430,8 @@
         savedVars%nblockuse_max = nblockuse
 !c      Write (6,*) 'nblockuse_max:  ', savedVars%nblockuse_max
       end if
+
+      print*, "nblockuse_max: ", savedVars%nblockuse_max
 
       if (savedVars%nblockuse_max > MXBLOCK) then
         Write (6,*) 'nblockuse > MXBLOCK', nblockuse
