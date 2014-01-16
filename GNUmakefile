@@ -23,6 +23,7 @@ GmiSolver_SavedVariables_mod.o:
 physproc.o:GmiPrintError_mod.o
 GmiPrintError_mod.o:
 smvgear.o:GmiPrintError_mod.o
+GmiMechanism_mod.o:GmiSolver_SavedVariables_mod.o
 
 distclean:clean
 	rm -f *exit*proc*
