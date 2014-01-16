@@ -408,9 +408,12 @@ contains
             jc = this%speciesNumberC(nkn)
 
             do block = 1, this%numGridCellsInBlock
-               reactionRates(block,nkn,1) = this%rateConstants(block,nkn) * concentrationsNew(block,jb) * concentrationsNew(block,jc)
-               reactionRates(block,nkn,2) = this%rateConstants(block,nkn) * concentrationsNew(block,ja) * concentrationsNew(block,jc)
-               reactionRates(block,nkn,3) = this%rateConstants(block,nkn) * concentrationsNew(block,ja) * concentrationsNew(block,jb)
+               reactionRates(block,nkn,1) = this%rateConstants(block,nkn) &
+                    & * concentrationsNew(block,jb) * concentrationsNew(block,jc)
+               reactionRates(block,nkn,2) = this%rateConstants(block,nkn) &
+                    & * concentrationsNew(block,ja) * concentrationsNew(block,jc)
+               reactionRates(block,nkn,3) = this%rateConstants(block,nkn) &
+                    & * concentrationsNew(block,ja) * concentrationsNew(block,jb)
             end do
 
           end do
@@ -424,8 +427,10 @@ contains
             jb = this%speciesNumberB(nkn)
 
             do block = 1, this%numGridCellsInBlock
-               reactionRates(block,nkn,1) = this%rateConstants(block,nkn) * concentrationsNew(block,jb)
-               reactionRates(block,nkn,2) = this%rateConstants(block,nkn) * concentrationsNew(block,ja)
+               reactionRates(block,nkn,1) = this%rateConstants(block,nkn) &
+                    & * concentrationsNew(block,jb)
+               reactionRates(block,nkn,2) = this%rateConstants(block,nkn) &
+                    & * concentrationsNew(block,ja)
             end do
 
          end do
