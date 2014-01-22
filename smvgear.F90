@@ -257,12 +257,7 @@
       integer :: nact
       integer :: ncsp  ! ncs       => for daytime   gas chemistry
                        ! ncs + ICS => for nighttime gas chemistry
-      integer :: numCallsPredict, numCallsVelocity
-      integer :: nqisc, nqqisc, nqqold
-      integer :: nqq
-      integer :: nslp
-      integer :: numSuccessTdt
-      integer :: numErrTolDecreases
+      integer :: nqisc
 
       integer :: ibcb(IGAS)
 
@@ -391,10 +386,10 @@
       managerObject%jfail     = 0
       managerObject%numFailErrorTest     = 0
       managerObject%numFailAfterPredict     = 0
-      numCallsPredict   = 0
-      numSuccessTdt    = 0
-      numCallsVelocity   = 0
-      numErrTolDecreases  = 0
+      managerObject%numCallsPredict   = 0
+      managerObject%numSuccessTdt    = 0
+      managerObject%numCallsVelocity   = 0
+      managerObject%numErrTolDecreases  = 0
 
       rmsError    = 1.0d0
 
@@ -427,7 +422,7 @@
 !     ========
 
       managerObject%idoub     = 2
-      nslp      = MBETWEEN
+      managerObject%nslp      = MBETWEEN
       managerObject%jrestar   = 0
       xelaps    = 0.0d0
       told      = 0.0d0
@@ -482,7 +477,7 @@
    !print*, "calling velocity"
       call velocity (mechanismObject, managerObject%num1stOEqnsSolve, ncsp, cnew, gloss, trate, nfdh1, savedVars)
 
-      numCallsVelocity = numCallsVelocity + 1
+      managerObject%numCallsVelocity = managerObject%numCallsVelocity + 1
 
       ! MRD: can this be removed?
       mechanismObject%rateConstants = rrate
@@ -644,8 +639,8 @@
 !     Set initial order to 1.
 !     -----------------------
 
-      nqqold = 0
-      nqq    = 1
+      managerObject%nqqold = 0
+      managerObject%nqq    = 1
       jeval  = 1
       rdelt  = 1.0d0
 
@@ -676,19 +671,19 @@
 !     pertst^2.
 !     -------------------------------------------------------------------
 
-      if (nqq /= nqqold) then
+      if (managerObject%nqq /= managerObject%nqqold) then
 
-        nqqold = nqq
-        managerObject%kstep  = nqq + 1
-        hratio = hratio * savedVars%aset(nqq,1) / asn1
-        asn1   = savedVars%aset(nqq,1)
-        enqq   = savedVars%pertst2(nqq,1) * order
-        eup    = savedVars%pertst2(nqq,2) * order
-        edwn   = savedVars%pertst2(nqq,3) * order
-        conp3  = 1.4d0 /  (eup**savedVars%enqq3(nqq))
-        conp2  = 1.2d0 / (enqq**savedVars%enqq2(nqq))
-        conp1  = 1.3d0 / (edwn**savedVars%enqq1(nqq))
-        nqqisc = nqq * managerObject%num1stOEqnsSolve
+        managerObject%nqqold = managerObject%nqq
+        managerObject%kstep  = managerObject%nqq + 1
+        hratio = hratio * savedVars%aset(managerObject%nqq,1) / asn1
+        asn1   = savedVars%aset(managerObject%nqq,1)
+        enqq   = savedVars%pertst2(managerObject%nqq,1) * order
+        eup    = savedVars%pertst2(managerObject%nqq,2) * order
+        edwn   = savedVars%pertst2(managerObject%nqq,3) * order
+        conp3  = 1.4d0 /  (eup**savedVars%enqq3(managerObject%nqq))
+        conp2  = 1.2d0 / (enqq**savedVars%enqq2(managerObject%nqq))
+        conp1  = 1.3d0 / (edwn**savedVars%enqq1(managerObject%nqq))
+        managerObject%nqqisc = managerObject%nqq * managerObject%num1stOEqnsSolve
 
       end if
 
@@ -705,7 +700,7 @@
       hratio = hratio * rdelt
       xelaps = xelaps + delt
 
-      if ((Abs (hratio-1.0d0) > MAX_REL_CHANGE) .or. (numSuccessTdt >= nslp)) then
+      if ((Abs (hratio-1.0d0) > MAX_REL_CHANGE) .or. (managerObject%numSuccessTdt >= managerObject%nslp)) then
         jeval = 1
       end if
 
@@ -726,10 +721,10 @@
      &          '          yfac      = ', 1pe9.3, /,  &
      &          '          errmax    = ', 1pe9.3)
 
-        numErrTolDecreases = numErrTolDecreases + 1
+        managerObject%numErrTolDecreases = managerObject%numErrTolDecreases + 1
         failureFraction     = failureFraction * 0.01d0
 
-        if (numErrTolDecreases == 10) then
+        if (managerObject%numErrTolDecreases == 10) then
 
           if (pr_smv2) then
             Write (lunsmv,960)
@@ -789,7 +784,7 @@
 !       Determine new absolute error tolerance.
 !       ---------------------------------------
 
-        if (Mod (numSuccessTdt, 3) == 2) then
+        if (Mod (managerObject%numSuccessTdt, 3) == 2) then
 
           do k = 1, 5
             do kloop = 1, ktloop
@@ -865,13 +860,13 @@
 !     previous values by the pascal triangle matrix.
 !     ------------------------------------------------------------------
 
-      i1 = nqqisc + 1
+      i1 = managerObject%nqqisc + 1
 
-      do jb = 1, nqq - 1
+      do jb = 1, managerObject%nqq - 1
 
         i1 = i1 - managerObject%num1stOEqnsSolve
 
-        do i = i1,  nqqisc
+        do i = i1,  managerObject%nqqisc
 
           j = i + managerObject%num1stOEqnsSolve
 
@@ -894,7 +889,7 @@
 
       end do
 
-      do i = managerObject%num1stOEqnsSolve + 1, nqqisc
+      do i = managerObject%num1stOEqnsSolve + 1, managerObject%nqqisc
 
         j = i + managerObject%num1stOEqnsSolve
 
@@ -956,7 +951,7 @@
 
          call calculateTermOfJacobian (mechanismObject, cnew, urate)
 
-         numCallsPredict  = numCallsPredict + 1
+         managerObject%numCallsPredict  = managerObject%numCallsPredict + 1
          ! MRD: iarray, npdhi, and npdlo are in common blocks
          call calculatePredictor (nondiag, savedVars%iarray(ncsp), mechanismObject%numGridCellsInBlock, &
             &  savedVars%npdhi(ncsp), savedVars%npdlo(ncsp), r1delt, urate, cc2, savedVars)
@@ -972,7 +967,7 @@
 
         jeval  = -1
         hratio = 1.0d0
-        nslp   = numSuccessTdt + MBETWEEN
+        managerObject%nslp   = managerObject%numSuccessTdt + MBETWEEN
         drate  = 0.7d0
 
       end if
@@ -989,7 +984,7 @@
 !   print*, "in 300, evaluating first derivative"
 
      call velocity (mechanismObject, managerObject%num1stOEqnsSolve, ncsp, cnew, gloss, trate, nfdh1, savedVars)
-     numCallsVelocity = numCallsVelocity + 1
+     managerObject%numCallsVelocity = managerObject%numCallsVelocity + 1
 
 !     ----------------------------------------------------------------
 !     Zero first derviatives in surface zones for species with fixed
@@ -1126,7 +1121,7 @@
         rmsrat = 1.0d0
       end if
 
-      dcon = rmsError * Min (savedVars%conpst(nqq), savedVars%conp15(nqq)*drate)
+      dcon = rmsError * Min (savedVars%conpst(managerObject%nqq), savedVars%conp15(managerObject%nqq)*drate)
 
 
 !     --------------------------------------------------------
@@ -1174,13 +1169,13 @@
         xelaps    = told
         rdelt     = fracdec
 
-        i1 = nqqisc + 1
+        i1 = managerObject%nqqisc + 1
 
-        do jb = 1, nqq
+        do jb = 1, managerObject%nqq
 
           i1 = i1 - managerObject%num1stOEqnsSolve
 
-          do i = i1, nqqisc
+          do i = i1, managerObject%nqqisc
 
             j = i + managerObject%num1stOEqnsSolve
 
@@ -1257,13 +1252,13 @@
         xelaps = told
         managerObject%numFailErrorTest  = managerObject%numFailErrorTest + 1
         managerObject%jfail  = managerObject%jfail  + 1
-        i1     = nqqisc + 1
+        i1     = managerObject%nqqisc + 1
 
-        do jb = 1, nqq
+        do jb = 1, managerObject%nqq
 
           i1 = i1 - managerObject%num1stOEqnsSolve
 
-          do i = i1, nqqisc
+          do i = i1, managerObject%nqqisc
 
             j = i + managerObject%num1stOEqnsSolve
 
@@ -1365,7 +1360,7 @@
 
         managerObject%jfail     = 0
         ifsuccess = 1
-        numSuccessTdt    = numSuccessTdt + 1
+        managerObject%numSuccessTdt    = managerObject%numSuccessTdt + 1
         told      = xelaps
 
         i1 = 1
@@ -1374,7 +1369,7 @@
 
           i1 = i1 + managerObject%num1stOEqnsSolve
 
-          asnqqj = savedVars%aset(nqq,j)
+          asnqqj = savedVars%aset(managerObject%nqq,j)
 
           do jspc = 1, managerObject%num1stOEqnsSolve
 
@@ -1490,7 +1485,7 @@
 !     order to increase.
 !     ---------------------------------------------------------------
 
-      if (nqq < MAXORD) then
+      if (managerObject%nqq < MAXORD) then
 
         do kloop = 1, ktloop
           dely(kloop) = 0.0d0
@@ -1514,7 +1509,7 @@
 
         end do
 
-        rdeltup = 1.0d0 / ((conp3 * der3max**savedVars%enqq3(nqq)) + 1.4d-6)
+        rdeltup = 1.0d0 / ((conp3 * der3max**savedVars%enqq3(managerObject%nqq)) + 1.4d-6)
 
       else
 
@@ -1533,7 +1528,7 @@
 !     der2max was calculated during the error tests earlier.
 !     ------------------------------------------------------------
 
-      rdeltsm = 1.0d0 / ((conp2 * der2max**savedVars%enqq2(nqq)) + 1.2d-6)
+      rdeltsm = 1.0d0 / ((conp2 * der2max**savedVars%enqq2(managerObject%nqq)) + 1.2d-6)
 
 
 !     ------------------------------------------------------------------
@@ -1541,7 +1536,7 @@
 !     the current order.  if nqq = 1, then we cannot test a lower order.
 !     ------------------------------------------------------------------
 
-      if (nqq > 1) then
+      if (managerObject%nqq > 1) then
 
         do kloop = 1, ktloop
           dely(kloop) = 0.0d0
@@ -1570,7 +1565,7 @@
           end if
         end do
 
-        rdeltdn = 1.0d0 / ((conp1 * der1max**savedVars%enqq1(nqq)) + 1.3d-6)
+        rdeltdn = 1.0d0 / ((conp1 * der1max**savedVars%enqq1(managerObject%nqq)) + 1.3d-6)
 
       else
 
@@ -1608,7 +1603,7 @@
 
       else if (rdelt == rdeltdn) then
 
-        nqq = nqq - 1
+        managerObject%nqq = managerObject%nqq - 1
 
 !       ---------------------------------------------------------------
 !       If the maximum time step ratio is that of one order higher than
@@ -1619,9 +1614,9 @@
       else if (rdelt == rdeltup) then
 
         real_kstep = managerObject%kstep
-        consmult   = savedVars%aset(nqq,managerObject%kstep) / real_kstep
-        nqq        = managerObject%kstep
-        nqisc      = nqq * managerObject%num1stOEqnsSolve
+        consmult   = savedVars%aset(managerObject%nqq,managerObject%kstep) / real_kstep
+        managerObject%nqq        = managerObject%kstep
+        nqisc      = managerObject%nqq * managerObject%num1stOEqnsSolve
 
         do jspc = 1, managerObject%num1stOEqnsSolve, 2
 
@@ -1644,7 +1639,7 @@
 !     that this merely leads to additional computations.
 !     ----------------------------------------------------------------
 
-      managerObject%idoub = nqq + 1
+      managerObject%idoub = managerObject%nqq + 1
 
 !     =========
       go to 200
