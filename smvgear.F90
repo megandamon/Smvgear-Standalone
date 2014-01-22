@@ -283,7 +283,6 @@
       real*8  :: delt, delt1
       real*8  :: der1max, der3max
       real*8  :: dtasn1
-      real*8  :: edwn, eup
       real*8  :: errymax
       real*8  :: hmtim
       real*8  :: r1delt, rdelta
@@ -294,16 +293,14 @@
 
       real*8, parameter :: MAX_REL_CHANGE = 0.3d0
 
+      real*8 :: eup ! pertst^2*order for one order higher than current order
+      real*8  :: edwn ! pertst^2*order for one order lower  than current order
+
+
 !     -------------------------------------------------------------------------
 !     dely   : tbd
 !     yabst  : absolute error tolerance (molec/cm^-3 for gases)
-!
 !     cest   : stores value of dtlos when idoub = 1
-!     chold  : 1 / (reltol * cnew + abtol); multiply chold by local errors in
-!              different error tests
-!     dtlos  : an array of length num1stOEqnsSolve, used for the accumulated corrections;
-!              on a successful return; dtlos(kloop,i) contains the estimated
-!              one step local error in cnew
 !     explic : tbd
 !     conc   : an array of length num1stOEqnsSolve*(MAXORD+1) that carries the
 !              derivatives of cnew, scaled by delt^j/factorial(j), where j is
@@ -313,10 +310,7 @@
 
       real*8  :: dely  (KBLOOP)
       real*8  :: yabst (KBLOOP)
-
       real*8  :: cest  (KBLOOP, MXGSAER)
-      real*8  :: chold (KBLOOP, MXGSAER)
-      real*8  :: dtlos (KBLOOP, MXGSAER)
       real*8  :: explic(KBLOOP, MXGSAER)
 
       real*8  :: conc  (KBLOOP, MXGSAER*7)
@@ -806,7 +800,7 @@
         do kloop = 1, ktloop
           do jspc = 1, managerObject%num1stOEqnsSolve
 
-            chold(kloop,jspc) =  &
+            managerObject%chold(kloop,jspc) =  &
      &        managerObject%reltol3 /  &
      &        (Max (cnew(kloop,jspc), 0.0d0) +  &
      &         (yabst(kloop) * managerObject%reltol2))
@@ -886,7 +880,7 @@
       do jspc = 1, managerObject%num1stOEqnsSolve
         do kloop = 1, ktloop
           cnew (kloop,jspc) = conc(kloop,jspc)
-          dtlos(kloop,jspc) = 0.0d0
+          managerObject%dtlos(kloop,jspc) = 0.0d0
         end do
       end do
 
@@ -997,7 +991,7 @@
 
         do kloop = 1, ktloop
           gloss(kloop,jspc) = (delt * gloss(kloop,jspc)) -  &
-     &                        (conc(kloop,j) + dtlos(kloop,jspc))
+     &                        (conc(kloop,j) + managerObject%dtlos(kloop,jspc))
         end do
 
       end do
@@ -1029,9 +1023,9 @@
         do i = 1, managerObject%num1stOEqnsSolve
           do kloop = 1, ktloop
 
-            dtlos(kloop,i) = dtlos(kloop,i) + gloss(kloop,i)
-            cnew(kloop,i)  = conc(kloop,i)  + dtlos(kloop,i)
-            errymax        = gloss(kloop,i) * chold(kloop,i)
+            managerObject%dtlos(kloop,i) = managerObject%dtlos(kloop,i) + gloss(kloop,i)
+            cnew(kloop,i)  = conc(kloop,i)  + managerObject%dtlos(kloop,i)
+            errymax        = gloss(kloop,i) * managerObject%chold(kloop,i)
             dely(kloop)    = dely(kloop)    + (errymax * errymax)
 
           end do
@@ -1042,9 +1036,9 @@
         do i = 1, managerObject%num1stOEqnsSolve
           do kloop = 1, ktloop
 
-            dtlos(kloop,i) = dtlos(kloop,i) + gloss(kloop,i)
-            cnew(kloop,i)  = conc(kloop,i)  + (managerObject%asn1 * dtlos(kloop,i))
-            errymax        = gloss(kloop,i) * chold(kloop,i)
+            managerObject%dtlos(kloop,i) = managerObject%dtlos(kloop,i) + gloss(kloop,i)
+            cnew(kloop,i)  = conc(kloop,i)  + (managerObject%asn1 * managerObject%dtlos(kloop,i))
+            errymax        = gloss(kloop,i) * managerObject%chold(kloop,i)
             dely(kloop)    = dely(kloop)    + (errymax * errymax)
 
           end do
@@ -1177,7 +1171,7 @@
 !c
         do kloop = 1, ktloop
           do jspc = 1, managerObject%num1stOEqnsSolve
-            errymax     = dtlos(kloop,jspc) * chold(kloop,jspc)
+            errymax     = managerObject%dtlos(kloop,jspc) * managerObject%chold(kloop,jspc)
             dely(kloop) = dely(kloop) + errymax * errymax
           end do
         end do
@@ -1341,7 +1335,7 @@
 
             do kloop = 1, ktloop
               conc(kloop,i) =  &
-     &          conc(kloop,i) + (asnqqj * dtlos(kloop,jspc))
+     &          conc(kloop,i) + (asnqqj * managerObject%dtlos(kloop,jspc))
             end do
 
           end do
@@ -1358,9 +1352,9 @@
             do kloop = 1, ktloop
 
               smvdm(kloop,i) =  &
-     &          smvdm(kloop,i) + dtlos(kloop,i) + explic(kloop,i)
+     &          smvdm(kloop,i) + managerObject%dtlos(kloop,i) + explic(kloop,i)
 
-              conc(kloop,i) = conc(kloop,i) + dtlos(kloop,i)
+              conc(kloop,i) = conc(kloop,i) + managerObject%dtlos(kloop,i)
 
             end do
           end do
@@ -1370,7 +1364,7 @@
           do i = 1, managerObject%num1stOEqnsSolve
             do kloop = 1, ktloop
 
-              dtasn1         = managerObject%asn1 * dtlos(kloop,i)
+              dtasn1         = managerObject%asn1 * managerObject%dtlos(kloop,i)
               smvdm(kloop,i) = smvdm(kloop,i) + dtasn1 + explic(kloop,i)
               conc (kloop,i) = conc (kloop,i) + dtasn1
 
@@ -1410,8 +1404,8 @@
               jg1 = jspc + 1
 
               do kloop = 1, ktloop
-                cest(kloop,jspc) = dtlos(kloop,jspc)
-                cest(kloop,jg1)  = dtlos(kloop,jg1)
+                cest(kloop,jspc) = managerObject%dtlos(kloop,jspc)
+                cest(kloop,jg1)  = managerObject%dtlos(kloop,jg1)
               end do
 
             end do
@@ -1457,8 +1451,8 @@
 
         do jspc = 1, managerObject%num1stOEqnsSolve
           do kloop = 1, ktloop
-            errymax     = (dtlos(kloop,jspc) - cest(kloop,jspc)) *  &
-     &                    chold(kloop,jspc)
+            errymax     = (managerObject%dtlos(kloop,jspc) - cest(kloop,jspc)) *  &
+     &                    managerObject%chold(kloop,jspc)
             dely(kloop) = dely(kloop) + (errymax * errymax)
           end do
         end do
@@ -1514,7 +1508,7 @@
 
             i = jspc + kstepisc
 
-            errymax     = conc(kloop,i) * chold(kloop,jspc)
+            errymax     = conc(kloop,i) * managerObject%chold(kloop,jspc)
             dely(kloop) = dely(kloop) + (errymax * errymax)
 
           end do
@@ -1589,8 +1583,8 @@
           i2  = jg1  + nqisc
 
           do kloop = 1, ktloop
-            conc(kloop,i1) = dtlos(kloop,jspc) * consmult
-            conc(kloop,i2) = dtlos(kloop,jg1)  * consmult
+            conc(kloop,i1) = managerObject%dtlos(kloop,jspc) * consmult
+            conc(kloop,i2) = managerObject%dtlos(kloop,jg1)  * consmult
           end do
 
         end do
