@@ -162,8 +162,9 @@
       use GmiSolver_SavedVariables_mod, only : t_Smv2Saved
       use GmiPrintError_mod, only : GmiPrintError
       use GmiMechanism_mod
-      use GmiSparseMatrix_mod
       use GmiManager_mod
+      use GmiSparseMatrix_mod
+
 
       implicit none
 
@@ -242,19 +243,16 @@
 
       integer :: i, j, k
       integer :: i1, i2
-      integer :: numFailOldJacobian, jfail, numFailErrorTest, numFailAfterPredict
       integer :: ifsuccess
-      integer :: num1stOEqnsSolve
       integer :: jb
       integer :: jeval
       integer :: jg1
       integer :: jgas
       integer :: jnew
-      integer :: jrestar
       integer :: jspc
       integer :: k1, k2, k3, k4, k5
       integer :: kloop
-      integer :: kstep, kstepisc
+      integer :: kstepisc
       integer :: l3
       integer :: nact
       integer :: ncsp  ! ncs       => for daytime   gas chemistry
@@ -389,10 +387,10 @@
 #     include "setkin_ibcb.h"
 !     =======================
 
-      numFailOldJacobian     = 0
-      jfail     = 0
-      numFailErrorTest     = 0
-      numFailAfterPredict     = 0
+      managerObject%numFailOldJacobian     = 0
+      managerObject%jfail     = 0
+      managerObject%numFailErrorTest     = 0
+      managerObject%numFailAfterPredict     = 0
       numCallsPredict   = 0
       numSuccessTdt    = 0
       numCallsVelocity   = 0
@@ -400,9 +398,9 @@
 
       rmsError    = 1.0d0
 
-      num1stOEqnsSolve    = savedVars%ischang(ncs)
-      order     = num1stOEqnsSolve
-      order_inv = 1.0d0 / num1stOEqnsSolve
+      managerObject%num1stOEqnsSolve    = savedVars%ischang(ncs)
+      order     = managerObject%num1stOEqnsSolve
+      order_inv = 1.0d0 / managerObject%num1stOEqnsSolve
 
       chemTimeInterval = savedVars%timeintv(ncs)
 
@@ -430,7 +428,7 @@
 
       managerObject%idoub     = 2
       nslp      = MBETWEEN
-      jrestar   = 0
+      managerObject%jrestar   = 0
       xelaps    = 0.0d0
       told      = 0.0d0
       timremain = chemTimeInterval
@@ -447,7 +445,7 @@
 !     Initialize concentration array.
 !     -------------------------------
 
-      do jnew = 1, num1stOEqnsSolve
+      do jnew = 1, managerObject%num1stOEqnsSolve
         do kloop = 1, ktloop
           cnew(kloop, jnew) = corig(kloop, jnew)
         end do
@@ -482,7 +480,7 @@
       mechanismObject%numActiveReactants = nallr
 
    !print*, "calling velocity"
-      call velocity (mechanismObject, num1stOEqnsSolve, ncsp, cnew, gloss, trate, nfdh1, savedVars)
+      call velocity (mechanismObject, managerObject%num1stOEqnsSolve, ncsp, cnew, gloss, trate, nfdh1, savedVars)
 
       numCallsVelocity = numCallsVelocity + 1
 
@@ -536,7 +534,7 @@
           end do
         end do
 
-        do jspc = 1, num1stOEqnsSolve
+        do jspc = 1, managerObject%num1stOEqnsSolve
           do kloop = 1, ktloop
 
             cnw = cnew(kloop,jspc)
@@ -582,7 +580,7 @@
 
 !c
         do kloop = 1, ktloop
-          do jspc = 1, num1stOEqnsSolve
+          do jspc = 1, managerObject%num1stOEqnsSolve
             cnewylow    = cnew (kloop,jspc) + (yabst(kloop) * reltol1)
             errymax     = gloss(kloop,jspc) / cnewylow
             dely(kloop) = dely (kloop) + (errymax * errymax)
@@ -602,7 +600,7 @@
 
 !c
         do kloop = 1, ktloop
-          do jspc = 1, num1stOEqnsSolve
+          do jspc = 1, managerObject%num1stOEqnsSolve
             errymax     = gloss(kloop,jspc) /  &
      &                    (cnew(kloop,jspc) + abtoler1)
             dely(kloop) = dely(kloop) + (errymax * errymax)
@@ -656,9 +654,9 @@
 !     Store initial concentration and first derivatives x time step.
 !     --------------------------------------------------------------
 
-      do jspc = 1, num1stOEqnsSolve
+      do jspc = 1, managerObject%num1stOEqnsSolve
 
-        j = jspc + num1stOEqnsSolve
+        j = jspc + managerObject%num1stOEqnsSolve
 
         do kloop = 1, ktloop
           conc(kloop,jspc) = cnew(kloop,jspc)
@@ -681,7 +679,7 @@
       if (nqq /= nqqold) then
 
         nqqold = nqq
-        kstep  = nqq + 1
+        managerObject%kstep  = nqq + 1
         hratio = hratio * savedVars%aset(nqq,1) / asn1
         asn1   = savedVars%aset(nqq,1)
         enqq   = savedVars%pertst2(nqq,1) * order
@@ -690,7 +688,7 @@
         conp3  = 1.4d0 /  (eup**savedVars%enqq3(nqq))
         conp2  = 1.2d0 / (enqq**savedVars%enqq2(nqq))
         conp1  = 1.3d0 / (edwn**savedVars%enqq1(nqq))
-        nqqisc = nqq * num1stOEqnsSolve
+        nqqisc = nqq * managerObject%num1stOEqnsSolve
 
       end if
 
@@ -760,12 +758,12 @@
         rdelta = 1.0d0
         i1     = 1
 
-        do j = 2, kstep
+        do j = 2, managerObject%kstep
 
           rdelta = rdelta * rdelt
-          i1     = i1 + num1stOEqnsSolve
+          i1     = i1 + managerObject%num1stOEqnsSolve
 
-          do i = i1, i1 + (num1stOEqnsSolve-1)
+          do i = i1, i1 + (managerObject%num1stOEqnsSolve-1)
             do kloop = 1, ktloop
               conc(kloop,i) = conc(kloop,i) * rdelta
             end do
@@ -799,7 +797,7 @@
             end do
           end do
 
-          do jspc = 1, num1stOEqnsSolve
+          do jspc = 1, managerObject%num1stOEqnsSolve
             do kloop = 1, ktloop
 
               cnw = cnew(kloop,jspc)
@@ -847,7 +845,7 @@
 
 !c
         do kloop = 1, ktloop
-          do jspc = 1, num1stOEqnsSolve
+          do jspc = 1, managerObject%num1stOEqnsSolve
 
             chold(kloop,jspc) =  &
      &        reltol3 /  &
@@ -871,11 +869,11 @@
 
       do jb = 1, nqq - 1
 
-        i1 = i1 - num1stOEqnsSolve
+        i1 = i1 - managerObject%num1stOEqnsSolve
 
         do i = i1,  nqqisc
 
-          j = i + num1stOEqnsSolve
+          j = i + managerObject%num1stOEqnsSolve
 
           do kloop = 1, ktloop
             conc(kloop,i)  = conc(kloop,i) + conc(kloop,j)
@@ -885,9 +883,9 @@
 
       end do
 
-      do jspc = 1,  num1stOEqnsSolve
+      do jspc = 1,  managerObject%num1stOEqnsSolve
 
-        j = jspc + num1stOEqnsSolve
+        j = jspc + managerObject%num1stOEqnsSolve
 
         do kloop = 1, ktloop
           conc  (kloop,jspc) = conc(kloop,jspc) + conc(kloop,j)
@@ -896,9 +894,9 @@
 
       end do
 
-      do i = num1stOEqnsSolve + 1, nqqisc
+      do i = managerObject%num1stOEqnsSolve + 1, nqqisc
 
-        j = i + num1stOEqnsSolve
+        j = i + managerObject%num1stOEqnsSolve
 
         do kloop = 1, ktloop
           conc(kloop,i) = conc(kloop,i) + conc(kloop,j)
@@ -926,7 +924,7 @@
 
       l3 = 0
 
-      do jspc = 1, num1stOEqnsSolve
+      do jspc = 1, managerObject%num1stOEqnsSolve
         do kloop = 1, ktloop
           cnew (kloop,jspc) = conc(kloop,jspc)
           dtlos(kloop,jspc) = 0.0d0
@@ -953,7 +951,7 @@
          !     &   irmc, r1delt, cnew, rrate, npderiv, cc2, urate, nfdh1)
 
 
-         nondiag  = savedVars%iarray(ncsp) - num1stOEqnsSolve ! iarray is in common block
+         nondiag  = savedVars%iarray(ncsp) - managerObject%num1stOEqnsSolve ! iarray is in common block
          mechanismObject%numRxns1 = nfdh2 + savedVars%ioner(ncsp)
 
          call calculateTermOfJacobian (mechanismObject, cnew, urate)
@@ -969,7 +967,7 @@
 !       ===========
         call Decomp  &
 !       ===========
-     &    (savedVars, num1stOEqnsSolve, ktloop, ncsp, cc2, vdiag)
+     &    (savedVars, managerObject%num1stOEqnsSolve, ktloop, ncsp, cc2, vdiag)
 !DIR$   NOINLINE
 
         jeval  = -1
@@ -990,7 +988,7 @@
 
 !   print*, "in 300, evaluating first derivative"
 
-     call velocity (mechanismObject, num1stOEqnsSolve, ncsp, cnew, gloss, trate, nfdh1, savedVars)
+     call velocity (mechanismObject, managerObject%num1stOEqnsSolve, ncsp, cnew, gloss, trate, nfdh1, savedVars)
      numCallsVelocity = numCallsVelocity + 1
 
 !     ----------------------------------------------------------------
@@ -1034,9 +1032,9 @@
 !     corrected calculation of the first derivative.
 !     ---------------------------------------------------------------
 
-      do jspc = 1, num1stOEqnsSolve
+      do jspc = 1, managerObject%num1stOEqnsSolve
 
-        j = jspc + num1stOEqnsSolve
+        j = jspc + managerObject%num1stOEqnsSolve
 
         do kloop = 1, ktloop
           gloss(kloop,jspc) = (delt * gloss(kloop,jspc)) -  &
@@ -1054,7 +1052,7 @@
 !     ============
       call Backsub  &
 !     ============
-     &  (savedVars, num1stOEqnsSolve, ktloop, ncsp, cc2, vdiag, gloss)
+     &  (savedVars, managerObject%num1stOEqnsSolve, ktloop, ncsp, cc2, vdiag, gloss)
 
 
 !     ----------------------------------------------------------------
@@ -1069,7 +1067,7 @@
 
       if (asn1 == 1.0d0) then
 
-        do i = 1, num1stOEqnsSolve
+        do i = 1, managerObject%num1stOEqnsSolve
           do kloop = 1, ktloop
 
             dtlos(kloop,i) = dtlos(kloop,i) + gloss(kloop,i)
@@ -1082,7 +1080,7 @@
 
       else
 
-        do i = 1, num1stOEqnsSolve
+        do i = 1, managerObject%num1stOEqnsSolve
           do kloop = 1, ktloop
 
             dtlos(kloop,i) = dtlos(kloop,i) + gloss(kloop,i)
@@ -1160,7 +1158,7 @@
 
         else if (jeval == 0) then
 
-          numFailOldJacobian = numFailOldJacobian + 1
+          managerObject%numFailOldJacobian = managerObject%numFailOldJacobian + 1
           jeval = 1
 
 !         =========
@@ -1169,7 +1167,7 @@
 
         end if
 
-        numFailAfterPredict     = numFailAfterPredict + 1
+        managerObject%numFailAfterPredict     = managerObject%numFailAfterPredict + 1
         rdelmax   = 2.0d0
         jeval     = 1
         ifsuccess = 0
@@ -1180,11 +1178,11 @@
 
         do jb = 1, nqq
 
-          i1 = i1 - num1stOEqnsSolve
+          i1 = i1 - managerObject%num1stOEqnsSolve
 
           do i = i1, nqqisc
 
-            j = i + num1stOEqnsSolve
+            j = i + managerObject%num1stOEqnsSolve
 
             do kloop = 1, ktloop
               conc(kloop,i) = conc(kloop,i) - conc(kloop,j)
@@ -1219,7 +1217,7 @@
 
 !c
         do kloop = 1, ktloop
-          do jspc = 1, num1stOEqnsSolve
+          do jspc = 1, managerObject%num1stOEqnsSolve
             errymax     = dtlos(kloop,jspc) * chold(kloop,jspc)
             dely(kloop) = dely(kloop) + errymax * errymax
           end do
@@ -1257,17 +1255,17 @@
 !     ==============================
 
         xelaps = told
-        numFailErrorTest  = numFailErrorTest + 1
-        jfail  = jfail  + 1
+        managerObject%numFailErrorTest  = managerObject%numFailErrorTest + 1
+        managerObject%jfail  = managerObject%jfail  + 1
         i1     = nqqisc + 1
 
         do jb = 1, nqq
 
-          i1 = i1 - num1stOEqnsSolve
+          i1 = i1 - managerObject%num1stOEqnsSolve
 
           do i = i1, nqqisc
 
-            j = i + num1stOEqnsSolve
+            j = i + managerObject%num1stOEqnsSolve
 
             do kloop = 1, ktloop
               conc(kloop,i) = conc(kloop,i) - conc(kloop,j)
@@ -1279,7 +1277,7 @@
 
         rdelmax = 2.0d0
 
-        if (jfail <= 6) then
+        if (managerObject%jfail <= 6) then
 
           ifsuccess = 0
           rdeltup   = 0.0d0
@@ -1288,7 +1286,7 @@
           go to 400
 !         =========
 
-        else if (jfail <= 20) then
+        else if (managerObject%jfail <= 20) then
 
           ifsuccess = 0
           rdelt     = fracdec
@@ -1301,11 +1299,11 @@
 
           delt    = delt * 0.1d0
           rdelt   = 1.0d0
-          jfail   = 0
-          jrestar = jrestar + 1
+          managerObject%jfail   = 0
+          managerObject%jrestar = managerObject%jrestar + 1
           managerObject%idoub   = 5
 
-          do jspc = 1, num1stOEqnsSolve
+          do jspc = 1, managerObject%num1stOEqnsSolve
             do kloop = 1, ktloop
               cnew(kloop,jspc) = conc(kloop,jspc)
             end do
@@ -1318,7 +1316,7 @@
  970      format ('delt dec to ', e13.5, ' at time ', e13.5,  &
      &            ' because of excessive errors.')
 
-          if (jrestar == 100) then
+          if (managerObject%jrestar == 100) then
 
             if (pr_smv2) then
               Write (lunsmv,980)
@@ -1365,20 +1363,20 @@
         end if
 
 
-        jfail     = 0
+        managerObject%jfail     = 0
         ifsuccess = 1
         numSuccessTdt    = numSuccessTdt + 1
         told      = xelaps
 
         i1 = 1
 
-        do j = 2, kstep
+        do j = 2, managerObject%kstep
 
-          i1 = i1 + num1stOEqnsSolve
+          i1 = i1 + managerObject%num1stOEqnsSolve
 
           asnqqj = savedVars%aset(nqq,j)
 
-          do jspc = 1, num1stOEqnsSolve
+          do jspc = 1, managerObject%num1stOEqnsSolve
 
             i = jspc + i1 - 1
 
@@ -1397,7 +1395,7 @@
 
         if (asn1 == 1.0d0) then
 
-          do i = 1, num1stOEqnsSolve
+          do i = 1, managerObject%num1stOEqnsSolve
             do kloop = 1, ktloop
 
               smvdm(kloop,i) =  &
@@ -1410,7 +1408,7 @@
 
         else
 
-          do i = 1, num1stOEqnsSolve
+          do i = 1, managerObject%num1stOEqnsSolve
             do kloop = 1, ktloop
 
               dtasn1         = asn1 * dtlos(kloop,i)
@@ -1448,7 +1446,7 @@
 
           if (managerObject%idoub == 1) then
 
-            do jspc = 1, num1stOEqnsSolve, 2
+            do jspc = 1, managerObject%num1stOEqnsSolve, 2
 
               jg1 = jspc + 1
 
@@ -1498,7 +1496,7 @@
           dely(kloop) = 0.0d0
         end do
 
-        do jspc = 1, num1stOEqnsSolve
+        do jspc = 1, managerObject%num1stOEqnsSolve
           do kloop = 1, ktloop
             errymax     = (dtlos(kloop,jspc) - cest(kloop,jspc)) *  &
      &                    chold(kloop,jspc)
@@ -1549,11 +1547,11 @@
           dely(kloop) = 0.0d0
         end do
 
-        kstepisc = (kstep - 1) * num1stOEqnsSolve
+        kstepisc = (managerObject%kstep - 1) * managerObject%num1stOEqnsSolve
 
 !c
         do kloop = 1, ktloop
-          do jspc = 1, num1stOEqnsSolve
+          do jspc = 1, managerObject%num1stOEqnsSolve
 
             i = jspc + kstepisc
 
@@ -1620,12 +1618,12 @@
 
       else if (rdelt == rdeltup) then
 
-        real_kstep = kstep
-        consmult   = savedVars%aset(nqq,kstep) / real_kstep
-        nqq        = kstep
-        nqisc      = nqq * num1stOEqnsSolve
+        real_kstep = managerObject%kstep
+        consmult   = savedVars%aset(nqq,managerObject%kstep) / real_kstep
+        nqq        = managerObject%kstep
+        nqisc      = nqq * managerObject%num1stOEqnsSolve
 
-        do jspc = 1, num1stOEqnsSolve, 2
+        do jspc = 1, managerObject%num1stOEqnsSolve, 2
 
           jg1 = jspc + 1
           i1  = jspc + nqisc
