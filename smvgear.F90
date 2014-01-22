@@ -15,8 +15,6 @@
 !   Smvgear
 !   Backsub
 !   Decomp
-!   Pderiv
-!   Subfun
 !   Update
 !
 !=============================================================================
@@ -109,7 +107,7 @@
 !   ktloop   : # of grid-cells in a grid-block
 !   lunsmv   : logical unit number to write to when pr_smv2 is true
 !   nallr    : # of active rxns
-!   ncs      : identifies gas chemistry type (1..NCSGAS)
+!   ncs      : identifies gas chemistry type (1.NCSGAS)
 !   nfdh2    : nfdh3 + # of rxns with two   active reactants
 !   nfdh3    :         # of rxns with three active reactants
 !   nfdl1    : nfdh2 + 1
@@ -136,10 +134,11 @@
 !   smvdm    : amount added to each spc at each grid-cell, for mass balance
 !              accounting (# cm^-3 for gas chemistry (?))
 !   nfdh1    : nfdh2 + # of rxns with one   active reactant
-!   errmx2   : tbd
+!   errmx2   : measure of stiffness/nearness to convergence of each block
+!              sum ydot/y for all species (MRD per Kareem Sorathia)
 !   cc2      : array holding values of decomposed matrix
 !   cnew     : stores conc (y (estimated)) (molec/cm^3)
-!   gloss    : value of first derivatives on output from Subfun; right-side
+!   gloss    : value of first derivatives on output from velocity; right-side
 !              of eqn on input to Backsub; error term (solution from Backsub)
 !              on output from Backsub
 !   vdiag    : 1 / current diagonal term of the decomposed matrix
@@ -164,6 +163,7 @@
       use GmiPrintError_mod, only : GmiPrintError
       use GmiMechanism_mod
       use GmiSparseMatrix_mod
+      use GmiManager_mod
 
       implicit none
 
@@ -232,42 +232,16 @@
 !     ----------------------
 
 !     ------------------------------------------------------------------------
-!     idoub     : records # of steps since the last change in step size or
-!                 order; it must be at least kstep = nqq+1 before doubling is
-!                 allowed
-!
-!     numFailOldJacobian     : # of times corrector failed to converge while the Jacobian
-!                 was old
-!     numFailErrorTest     : # of times accumulated error test failed
-!     numFailAfterPredict     : # of times correcter failed to converge after Pderiv was
-!                 called
 !
 !     ifsuccess : identifies whether step is successful (=1) or not (=0)
-!     num1stOEqnsSolve    : # of first-order eqns to solve, = # of spc = order of
-!                 original matrix; num1stOEqnsSolve has a different value for day and
-!                 night and for gas- and aqueous-phase chemistry;
-!                 # spc with prod or loss terms in Smvgear (?)
 !     jeval     :  1 => call Pderiv the next time through the corrector steps;
 !                  0 => last step successful and do not need to call Pderiv;
 !                 -1 => Pderiv just called, and do not need to call again
 !                  until jeval switched to 1
-!     jrestar   : counts # of times Smvgear starts over at order 1 because of
-!                 excessive failures
-!     kstep     : nqq + 1
-!
-!     numCallsPredict   : total # of times Pderiv is called
-!     numCallsVelocity   : total # of times Subfun is called
-!
-!     nqqisc    : nqq * num1stOEqnsSolve
-!     nqqold    : value of nqq during last time step
-!     nqq       : order of integration method; varies between 1 and MAXORD
-!     nslp      : last time step # during which Pderiv was called
-!     numSuccessTdt    : total # of successful time steps taken
 !     ------------------------------------------------------------------------
 
       integer :: i, j, k
       integer :: i1, i2
-      integer :: idoub
       integer :: numFailOldJacobian, jfail, numFailErrorTest, numFailAfterPredict
       integer :: ifsuccess
       integer :: num1stOEqnsSolve
@@ -391,6 +365,7 @@
       real*8  :: conc  (KBLOOP, MXGSAER*7)
 
       type (Mechanism_type) :: mechanismObject
+      type (Manager_type) :: managerObject
       integer :: nondiag     ! # of final matrix positions, excluding diagonal
 
       mechanismObject%numGridCellsInBlock = ktloop
@@ -453,7 +428,7 @@
  100  continue
 !     ========
 
-      idoub     = 2
+      managerObject%idoub     = 2
       nslp      = MBETWEEN
       jrestar   = 0
       xelaps    = 0.0d0
@@ -1328,7 +1303,7 @@
           rdelt   = 1.0d0
           jfail   = 0
           jrestar = jrestar + 1
-          idoub   = 5
+          managerObject%idoub   = 5
 
           do jspc = 1, num1stOEqnsSolve
             do kloop = 1, ktloop
@@ -1467,11 +1442,11 @@
 !         if idoub = 0, test the time step and order for a change.
 !       -------------------------------------------------------------------
 
-        if (idoub > 1) then
+        if (managerObject%idoub > 1) then
 
-          idoub = idoub - 1
+          managerObject%idoub = managerObject%idoub - 1
 
-          if (idoub == 1) then
+          if (managerObject%idoub == 1) then
 
             do jspc = 1, num1stOEqnsSolve, 2
 
@@ -1621,7 +1596,7 @@
 
       if ((rdelt < 1.1d0) .and. (ifsuccess == 1)) then
 
-        idoub = 3
+        managerObject%idoub = 3
 
 !       =========
         go to 200
@@ -1671,7 +1646,7 @@
 !     that this merely leads to additional computations.
 !     ----------------------------------------------------------------
 
-      idoub = nqq + 1
+      managerObject%idoub = nqq + 1
 
 !     =========
       go to 200
