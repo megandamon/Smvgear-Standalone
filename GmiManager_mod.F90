@@ -254,7 +254,7 @@ contains
       real*8, intent(in) :: maxRelChange
 
       real*8  :: hmtim
-      Write (6,*) 'calculateTimeStep called.'
+      !Write (6,*) 'calculateTimeStep called.'
 
       hmtim  = Min (this%maxTimeStep, this%timeremain)
       this%rdelt  = Min (this%rdelt, this%rdelmax, hmtim/delt)
@@ -293,7 +293,7 @@ contains
       real*8 :: eup ! pertst^2*order for one order higher than current order
       real*8  :: edwn ! pertst^2*order for one order lower  than current order
 
-      Write (6,*) 'updateCoefficients called.'
+      !Write (6,*) 'updateCoefficients called.'
 
       this%nqqold = this%nqq
       this%kstep  = this%nqq + 1
@@ -342,7 +342,7 @@ contains
       real*8  :: rmstop
       real*8  :: delt1
 
-      Write (6,*) 'calcInitialTimeStepSize called.'
+      !Write (6,*) 'calcInitialTimeStepSize called.'
 
       rmstop = 0.0d0
       do kloop = 1, ktloop
@@ -392,7 +392,7 @@ contains
       integer :: jspc
       real*8  :: errymax
 
-      Write (6,*) 'calculateErrorTolerances called.'
+      !Write (6,*) 'calculateErrorTolerances called.'
 
       ! abtoler1 = failureFraction * abtol(6,ncs) / Min (errmax, 1.0d-03)
       do kloop = 1, ktloop

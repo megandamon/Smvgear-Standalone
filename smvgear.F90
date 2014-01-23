@@ -479,29 +479,8 @@
       else
 !     ====
 
-!       ------------------------------------------------------
-!       Use lowest absolute error tolerance when reordering.
-!       If reordering, set errmx2 then return to Physproc.
-!
-!       abtoler1 = failureFraction * abtol(6,ncs) / Min (errmax, 1.0d-03)
-!       ------------------------------------------------------
-
-!c
-        do kloop = 1, ktloop
-          do jspc = 1, managerObject%num1stOEqnsSolve
-            errymax     = gloss(kloop,jspc) /  &
-     &                    (cnew(kloop,jspc) + managerObject%abtoler1)
-            dely(kloop) = dely(kloop) + (errymax * errymax)
-          end do
-        end do
-
-        do kloop = 1, ktloop
-          errmx2(jlooplo+kloop) = dely(kloop)
-        end do
-   !print*, "leaving smvgear"
-        return
-
-
+      call calculateErrorTolerances (managerObject, ktloop, jlooplo, itloop, cnew, gloss, dely, errmx2)
+      return
 
 !     ===============
       end if IREORDIF
@@ -524,9 +503,8 @@
         end if
       end do
 
-      delt1 = Sqrt (managerObject%initialError / (savedVars%abst2(ncs) + (rmstop * managerObject%order_inv)))
-      delt  = Max  (Min (delt1, managerObject%timeremain, managerObject%maxTimeStep), HMIN)
-
+      call calcInitialTimeStepSize (managerObject, ktloop, dely, &
+         delt, ncs, savedVars)
 
 !     -----------------------
 !     Set initial order to 1.
@@ -558,81 +536,16 @@
  200  continue
 !     ========
 
+      if (managerObject%nqq /= managerObject%nqqold) call updateCoefficients (managerObject, savedVars)
+      call calculateTimeStep (managerObject, delt, jeval, MAX_REL_CHANGE)
 
-!     -------------------------------------------------------------------
-!     Update coefficients of the order; note that pertst2 is the original
-!     pertst^2.
-!     -------------------------------------------------------------------
-
-      if (managerObject%nqq /= managerObject%nqqold) then
-
-        managerObject%nqqold = managerObject%nqq
-        managerObject%kstep  = managerObject%nqq + 1
-        managerObject%hratio = managerObject%hratio * savedVars%aset(managerObject%nqq,1) / managerObject%asn1
-        managerObject%asn1   = savedVars%aset(managerObject%nqq,1)
-        managerObject%enqq   = savedVars%pertst2(managerObject%nqq,1) * managerObject%order
-        eup    = savedVars%pertst2(managerObject%nqq,2) * managerObject%order
-        edwn   = savedVars%pertst2(managerObject%nqq,3) * managerObject%order
-        managerObject%conp3  = 1.4d0 /  (eup**savedVars%enqq3(managerObject%nqq))
-        managerObject%conp2  = 1.2d0 / (managerObject%enqq**savedVars%enqq2(managerObject%nqq))
-        managerObject%conp1  = 1.3d0 / (edwn**savedVars%enqq1(managerObject%nqq))
-        managerObject%nqqisc = managerObject%nqq * managerObject%num1stOEqnsSolve
-
-      end if
-
-
-!     ----------------------------------------------------------------
-!     Limit size of rdelt, then recalculate new time step and update
-!     hratio.  Use hratio to determine whether Pderiv should be called
-!     again.
-!     ----------------------------------------------------------------
-
-      hmtim  = Min (managerObject%maxTimeStep, managerObject%timeremain)
-      managerObject%rdelt  = Min (managerObject%rdelt, managerObject%rdelmax, hmtim/delt)
-      delt   = delt   * managerObject%rdelt
-      managerObject%hratio = managerObject%hratio * managerObject%rdelt
-      managerObject%xelaps = managerObject%xelaps + delt
-
-      if ((Abs (managerObject%hratio-1.0d0) > MAX_REL_CHANGE) .or. (managerObject%numSuccessTdt >= managerObject%nslp)) then
-        jeval = 1
-      end if
-
-
-!     ----------------------------------------------------------
-!     If time step < HMIN, tighten absoloute error tolerance and
-!     restart integration at beginning of time interval.
-!     ----------------------------------------------------------
 
       if (delt < HMIN) then
-
-        if (pr_smv2) then
-          Write (lunsmv,950) delt, managerObject%timeremain, managerObject%failureFraction, savedVars%errmax(ncs)
-        end if
-
- 950    format ('Smvgear:  delt      = ', 1pe9.3, /,  &
-     &          '          timremain = ', 1pe9.3, /,  &
-     &          '          yfac      = ', 1pe9.3, /,  &
-     &          '          errmax    = ', 1pe9.3)
-
-        managerObject%numErrTolDecreases = managerObject%numErrTolDecreases + 1
-        managerObject%failureFraction     = managerObject%failureFraction * 0.01d0
-
-        if (managerObject%numErrTolDecreases == 10) then
-
-          if (pr_smv2) then
-            Write (lunsmv,960)
-          end if
-
- 960      format ('Smvgear:  too many decreases of yfac.')
-        print*, "Too many decreases of yfac."
-        call GmiPrintError ('Problem in Smvgear', .true., 0, 0, 0, 0, 0.0d0, 0.0d0)
-
-        end if
-
-!       =========
-        go to 100
-!       =========
-
+        call tightenErrorTolerance (managerObject, pr_smv2, &
+               lunsmv, ncs, delt, savedVars)
+        !     ========================================
+        go to 100 ! routine start startTimeInterval?
+        !     ========================================
       end if
 
 
