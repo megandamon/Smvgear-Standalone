@@ -1,5 +1,8 @@
 module GmiMechanism_mod
 
+
+   use GmiSolver_SavedVariables_mod, only : t_Smv2Saved
+
    implicit none
    private
 
@@ -65,7 +68,8 @@ contains
 !   yemis    : surface emissions (units?)
 !-----------------------------------------------------------------------------
       subroutine setBoundaryConditions (this, itloop, jreorder, jlooplo, ilat, ilong, &
-                  & ntspec, ncs, inewold, do_semiss_inchem, gloss, yemis)
+                  & ntspec, ncs, inewold, do_semiss_inchem, gloss, yemis, ibcb)
+
 
          implicit none
 
@@ -83,11 +87,12 @@ contains
          logical, intent(in)  :: do_semiss_inchem
          real*8,  intent(inout) :: gloss (KBLOOP, MXGSAER)
          real*8,  intent(in)  :: yemis   (ilat*ilong, IGAS)
+         integer, intent(in) :: ibcb(IGAS)
 
          integer :: kloop, jspc, jgas
-         integer :: ibcb(IGAS)
 
-         Write (6,*) 'setBoundaryConditions called'
+
+         !Write (6,*) 'setBoundaryConditions called'
 
          do kloop = 1, this%numGridCellsInBlock
             if (jreorder(jlooplo+kloop) <= (ilat*ilong)) then

@@ -391,7 +391,6 @@
       mechanismObject%rateConstants = rrate
       mechanismObject%numActiveReactants = nallr
 
-   !print*, "calling velocity"
       call velocity (mechanismObject, managerObject%num1stOEqnsSolve, ncsp, cnew, gloss, trate, nfdh1, savedVars)
 
       managerObject%numCallsVelocity = managerObject%numCallsVelocity + 1
@@ -399,33 +398,10 @@
       ! MRD: can this be removed?
       mechanismObject%rateConstants = rrate
 
-
-!     ----------------------------------------------------------------
-!     Zero first derviatives in surface zones for species with fixed
-!     concentration boundary conditions (LLNL addition, PSC, 5/14/99).
-!     ----------------------------------------------------------------
-
-      do kloop = 1, ktloop
-
-        if (jreorder(jlooplo+kloop) <= (ilat*ilong)) then
-
-          do jspc = 1, ntspec(ncs)
-
-            jgas = inewold(jspc,1)
-
-            if (ibcb(jgas) == 1) then
-              gloss(kloop,jspc) = 0.0d0
-            else if (do_semiss_inchem) then
-              gloss(kloop,jspc) =  &
-     &          gloss(kloop,jspc) +  &
-     &          yemis(jreorder(jlooplo+kloop),jgas)
-            end if
-
-          end do
-
-        end if
-
-      end do
+      call setBoundaryConditions (mechanismObject, itloop, &
+         & jreorder, jlooplo, ilat, &
+         & ilong, ntspec, ncs, inewold, &
+         & do_semiss_inchem, gloss, yemis, ibcb)
 
 !     -------------------------------------------
 !     Determine initial absolute error tolerance.
