@@ -1014,7 +1014,9 @@
         rmsrat = 1.0d0
       end if
 
-      managerObject%dcon = managerObject%rmsError * Min (savedVars%conpst(managerObject%nqq), savedVars%conp15(managerObject%nqq)*managerObject%drate)
+      managerObject%dcon = managerObject%rmsError * Min &
+           (savedVars%conpst(managerObject%nqq), &
+           savedVars%conp15(managerObject%nqq)*managerObject%drate)
 
 
 !     --------------------------------------------------------
