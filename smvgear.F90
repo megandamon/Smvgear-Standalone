@@ -487,27 +487,11 @@
 !     ===============
 
 
-!     --------------------------------------
-!     Calculate initial time step size (s).
-!
-!     Sqrt (dely / [initialError * order]) =
-!       rmsnorm of error scaled to initialError *
-!       cnew + abtol / reltol
-!     --------------------------------------
-
-      rmstop = 0.0d0
-
-      do kloop = 1, ktloop
-        if (dely(kloop) > rmstop) then
-          rmstop = dely(kloop)
-        end if
-      end do
-
       call calcInitialTimeStepSize (managerObject, ktloop, dely, &
          delt, ncs, savedVars)
 
 !     -----------------------
-!     Set initial order to 1.
+!     Set initial ½ to 1.
 !     -----------------------
 
       managerObject%nqqold = 0
@@ -792,40 +776,11 @@
      call velocity (mechanismObject, managerObject%num1stOEqnsSolve, ncsp, cnew, gloss, trate, nfdh1, savedVars)
      managerObject%numCallsVelocity = managerObject%numCallsVelocity + 1
 
-!     ----------------------------------------------------------------
-!     Zero first derviatives in surface zones for species with fixed
-!     concentration boundary conditions.  Include surface emissions in
-!     first derviatives.
-!
-!     Species with non-zero fluxes (LLNL addition, PSC, 7/24/96).
-!     ----------------------------------------------------------------
+      call setBoundaryConditions (mechanismObject, itloop, &
+         & jreorder, jlooplo, ilat, &
+         & ilong, ntspec, ncs, inewold, &
+         & do_semiss_inchem, gloss, yemis, ibcb)
 
-      do kloop = 1, ktloop
-
-        if (jreorder(jlooplo+kloop) <= (ilat*ilong)) then
-
-          do jspc = 1, ntspec(ncs)
-
-            jgas = inewold(jspc,1)
-
-            if (ibcb(jgas) == 1) then
-
-              gloss(kloop,jspc) = 0.0d0
-
-            else
-
-              if (do_semiss_inchem) then
-                gloss(kloop,jspc) = gloss(kloop,jspc) +  &
-     &                              yemis(jreorder(jlooplo+kloop),jgas)
-              end if
-
-            end if
-
-          end do
-
-        end if
-
-      end do
 
 
 !     ---------------------------------------------------------------
