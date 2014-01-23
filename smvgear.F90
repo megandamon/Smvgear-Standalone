@@ -351,20 +351,7 @@
  100  continue
 !     ========
 
-      managerObject%idoub     = 2
-      managerObject%nslp      = MBETWEEN
-      managerObject%jrestar   = 0
-      managerObject%xelaps    = 0.0d0
-      managerObject%told      = 0.0d0
-      managerObject%timeremain = managerObject%chemTimeInterval
-
-      managerObject%reltol1   = managerObject%failureFraction * managerObject%initialError_inv
-
-      managerObject%reltol2   = managerObject%failureFraction * managerObject%errmax_ncs_inv
-
-      managerObject%reltol3   = managerObject%errmax_ncs_inv
-
-      managerObject%abtoler1  = savedVars%abtol(6,ncs) * managerObject%reltol1
+      call startTimeInterval (managerObject, ncs, savedVars)
 
 !     -------------------------------
 !     Initialize concentration array.

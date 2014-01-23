@@ -5,6 +5,7 @@ module GmiMechanism_mod
 
 #     include "smv2chem_par.h"
 
+   public :: setBoundaryConditions
    public :: velocity
    public :: calculateTermOfJacobian
    public :: Mechanism_type
@@ -18,8 +19,6 @@ module GmiMechanism_mod
 ! this is a GMI-specific verison of sparse matrix
    type Mechanism_type
 
-       integer :: numRxns1, numRxns2, numRxns3 ! number of rxns
-                     ! with 1, 2, and 3 reactants
        integer :: numRxns3Drep !numRxns3 + # of rxns with
                      ! two active reactants that are not
                        ! followed by a rxn with the same reactant
@@ -27,6 +26,8 @@ module GmiMechanism_mod
        integer :: speciesNumberA    (NMTRATE)
        integer :: speciesNumberB    (NMTRATE)
        integer :: speciesNumberC    (NMTRATE)
+       integer :: numRxns1, numRxns2, numRxns3 ! number of rxns
+                     ! with 1, 2, and 3 reactants
        integer :: numGridCellsInBlock
        real*8  :: rateConstants (KBLOOP, NMTRATE) ! rate coefficient:
                               ! rates with 1 reactant:   s^-1
@@ -37,6 +38,72 @@ module GmiMechanism_mod
     end type Mechanism_type
 
 contains
+
+!-----------------------------------------------------------------------------
+!
+! ROUTINE
+!   setBoundaryConditions
+!
+! DESCRIPTION
+!     Zero first derviatives in surface zones for species with fixed
+!     concentration boundary conditions (LLNL addition, PSC, 5/14/99).
+!
+! MRD: this will probably be called within mechanism and not directly
+! ARGUMENTS
+!   jreorder : gives original grid-cell from re-ordered grid-cell
+!   jlooplo  : low ntloop grid-cell - 1 in a grid-block
+!   ilat     : # of latitudes
+!   ilong    : # of longitudes
+!   ntspec   : # of active + inactive gases
+!   ncs      : identifies gas chemistry type (1..NCSGAS)
+!   inewold  : original spc # of each new jnew spc
+!   do_semiss_inchem : do surface emissions inside the chemistry solver, or
+!                      outside?
+!   gloss    : value of first derivatives on output from velocity; right-side
+!              of eqn on input to Backsub; error term (solution from Backsub)
+!              on output from Backsub
+!   yemis    : surface emissions (units?)
+!-----------------------------------------------------------------------------
+      subroutine setBoundaryConditions (this, itloop, jreorder, jlooplo, ilat, ilong, &
+                  & ntspec, ncs, inewold, do_semiss_inchem, gloss, yemis)
+
+         implicit none
+
+         !     ----------------------
+         !     Argument declarations.
+         !     ----------------------
+         type (Mechanism_type) :: this
+         integer, intent(in)  :: itloop
+         integer, intent(in)  :: jreorder(itloop)
+         integer, intent(in)  :: jlooplo
+         integer, intent(in)  :: ilat, ilong
+         integer, intent(in)  :: ntspec  (ICS)
+         integer, intent(in)  :: ncs
+         integer, intent(in)  :: inewold (MXGSAER, ICS)
+         logical, intent(in)  :: do_semiss_inchem
+         real*8,  intent(inout) :: gloss (KBLOOP, MXGSAER)
+         real*8,  intent(in)  :: yemis   (ilat*ilong, IGAS)
+
+         integer :: kloop, jspc, jgas
+         integer :: ibcb(IGAS)
+
+         Write (6,*) 'setBoundaryConditions called'
+
+         do kloop = 1, this%numGridCellsInBlock
+            if (jreorder(jlooplo+kloop) <= (ilat*ilong)) then
+               do jspc = 1, ntspec(ncs)
+                  jgas = inewold(jspc,1)
+                  if (ibcb(jgas) == 1) then
+                     gloss(kloop,jspc) = 0.0d0
+                  else if (do_semiss_inchem) then
+                     gloss(kloop,jspc) =  gloss(kloop,jspc) +  &
+                     &          yemis(jreorder(jlooplo+kloop),jgas)
+                  end if
+               end do
+            end if
+         end do
+
+      end subroutine setBoundaryConditions
 
 !-----------------------------------------------------------------------------
 !

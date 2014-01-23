@@ -427,7 +427,7 @@ contains
       integer, intent(in)  :: ncs ! ncs is argument to Smvgear
       type(t_Smv2Saved), intent(inOut) :: savedVars
 
-      Write (6,*) 'startTimeInterval called.'
+      !Write (6,*) 'startTimeInterval called.'
 
       this%idoub     = 2
       this%nslp      = MBETWEEN
