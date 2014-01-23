@@ -24,7 +24,7 @@
 !-----------------------------------------------------------------------------
 !
 ! ROUTINE
-!   Physproc
+!   physProc
 !
 ! DESCRIPTION
 !   This routine solves gas-phase chemical equations.  It divides the grid-
@@ -54,7 +54,7 @@
 !   numZones    : # of zones (numLongs * numLats * numVert)
 !   numGridCellsInBlock    : intended # of grid-cells in a grid-block
 !   smvUnitNumber    : logical unit number to write to when prSmv2 is true
-!   gasChemistryType       : identifies gas chemistry type (1..NCSGAS)
+!   gasChemistryType       : identifies gas chemistry type (1.NCSGAS)
 !   fractionDecrease   : fraction time step is decreased in Smvgear if convergence
 !               test fails
 !   maxTimeStepNight   : max time step for night all chem (s)
@@ -69,7 +69,7 @@
 !   npphotrat : tbd
 !   arate     : thermal    rate constants (units vary)
 !   prate     : photolysis rate constants (s^-1)
-!   yemis     : surface emissions (units?)
+!   yemis     : surface emissions (molecules/cm^3/sec)
 !   jreorder  : gives original grid-cell from re-ordered grid-cell
 !   lreorder  : gives original grid-cell from re-ordered cell, except when
 !               cell is a virtual boundary cell, then it gives original
@@ -367,7 +367,6 @@
       integer :: kblk
       integer :: nblock1
 
-      integer, save :: nblockuse_max = -1
       real*8, parameter :: PHOTOLYSIS_THRESHOLD = 1.0d-80
 
 !     ----------------
@@ -431,8 +430,6 @@
 !c      Write (6,*) 'nblockuse_max:  ', savedVars%nblockuse_max
       end if
 
-      !print*, "nblockuse_max: ", savedVars%nblockuse_max
-
       if (savedVars%nblockuse_max > MXBLOCK) then
         Write (6,*) 'nblockuse > MXBLOCK', nblockuse
         call GmiPrintError ('Deter_Block_Size', .true., 0, 0, 0, 0, 0.0d0, 0.0d0)
@@ -454,7 +451,7 @@
 
       return
 
-      end
+      end subroutine Deter_Block_Size
 
 
 !-----------------------------------------------------------------------------
@@ -486,7 +483,7 @@
 !   smvUnitNumber    : logical unit number to write to when prSmv2 is true
 !   nblockuse : (ireord == loreord) => # of original  blocks
 !               (ireord /= loreord) => # of reordered blocks
-!   gasChemistryType       : identifies gas chemistry type (1..NCSGAS)
+!   gasChemistryType       : identifies gas chemistry type (1.NCSGAS)
 !   fractionDecrease   : fraction time step is decreased in Smvgear if convergence
 !               test fails
 !   maxTimeStepNight   : max time step for night all chem (s)
@@ -502,7 +499,7 @@
 !   npphotrat : tbd
 !   arate     : thermal    rate constants (units vary)
 !   prate     : photolysis rate constants (s^-1)
-!   yemis     : surface emissions (units?)
+!   yemis     : surface emissions (molec/cm^3/sec)
 !   jreorder  : gives original grid-cell from re-ordered grid-cell
 !   lreorder  : gives original grid-cell from re-ordered cell, except when
 !               cell is a virtual boundary cell, then it gives original
@@ -831,7 +828,7 @@
 
       return
 
-      end
+      end subroutine Solve_Block
 
 
 !-----------------------------------------------------------------------------
@@ -852,7 +849,7 @@
 !   numZones    : # of zones (numLongs * numLats * numVert)
 !   jlooplo   : low ntloop grid-cell - 1 in a grid-block
 !   ktloop    : # of grid-cells in a grid-block
-!   gasChemistryType       : identifies gas chemistry type (1..NCSGAS)
+!   gasChemistryType       : identifies gas chemistry type (1.NCSGAS)
 !   jreorder  : gives original grid-cell from re-ordered grid-cell
 !   numKineticRxns    : # of kinetic rxns (non-photo)
 !   numActInActGases    : # of active + inactive gases
@@ -1121,7 +1118,7 @@
 
       return
 
-      end
+      end subroutine Calcrate
 
 
 !-----------------------------------------------------------------------------
@@ -1345,5 +1342,4 @@
 
       return
 
-      end
-
+      end subroutine Reorder_Grid_Cells

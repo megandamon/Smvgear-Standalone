@@ -21,8 +21,8 @@ $(EXE): $(OBJS)
 smv2chem_solver.o:GmiSolver_SavedVariables_mod.o timing_mod.o
 GmiSolver_SavedVariables_mod.o:
 physproc.o:GmiPrintError_mod.o
-GmiPrintError_mod.o:
-smvgear.o:GmiPrintError_mod.o
+GmiManager_mod.o:GmiPrintError_mod.o GmiSolver_SavedVariables_mod.o
+smvgear.o:GmiPrintError_mod.o GmiManager_mod.o GmiMechanism_mod.o
 GmiMechanism_mod.o:GmiSolver_SavedVariables_mod.o
 
 distclean:clean
