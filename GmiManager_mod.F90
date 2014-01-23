@@ -109,7 +109,7 @@ contains
       integer:: jspc, kloop
       real*8  :: errymax
 
-      Write (6,*) 'testAccumulatedError called.'
+      !Write (6,*) 'testAccumulatedError called.'
 
       do kloop = 1, ktloop
          dely(kloop) = 0.0d0
@@ -157,7 +157,7 @@ contains
       real*8  :: rmsErrorPrevious, rmsrat
       integer :: kloop
 
-      Write (6,*) 'calculateNewRmsError called.'
+      !Write (6,*) 'calculateNewRmsError called.'
 
       rmsErrorPrevious = this%rmsError
       this%der2max = 0.0d0
