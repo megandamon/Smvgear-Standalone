@@ -12,7 +12,6 @@ module GmiManager_mod
    private
 
 #     include "smv2chem_par.h"
-!#     include "smv2chem2.h"
 
    public :: Manager_type
    public :: resetGear
@@ -110,7 +109,7 @@ contains
       integer:: jspc, kloop
       real*8  :: errymax
 
-      !Write (6,*) 'testAccumulatedError called.'
+      Write (6,*) 'testAccumulatedError called.'
 
       do kloop = 1, ktloop
          dely(kloop) = 0.0d0
@@ -144,6 +143,7 @@ contains
 ! Created by: Megan Rose Damon
 !-----------------------------------------------------------------------------
    subroutine calculateNewRmsError (this, ktloop, dely, l3, savedVars)
+      use GmiSolver_SavedVariables_mod, only : t_Smv2Saved
       ! ----------------------
       ! Argument declarations.
       ! ----------------------
@@ -153,10 +153,11 @@ contains
       integer, intent(inout) :: l3
       type(t_Smv2Saved), intent(inOut) :: savedVars
 
+
       real*8  :: rmsErrorPrevious, rmsrat
       integer :: kloop
 
-      !Write (6,*) 'calculateNewRmsError called.'
+      Write (6,*) 'calculateNewRmsError called.'
 
       rmsErrorPrevious = this%rmsError
       this%der2max = 0.0d0
@@ -253,7 +254,7 @@ contains
       real*8, intent(in) :: maxRelChange
 
       real*8  :: hmtim
-      !Write (6,*) 'calculateTimeStep called.'
+      Write (6,*) 'calculateTimeStep called.'
 
       hmtim  = Min (this%maxTimeStep, this%timeremain)
       this%rdelt  = Min (this%rdelt, this%rdelmax, hmtim/delt)
@@ -274,7 +275,7 @@ contains
 !   updateCoefficients
 !
 ! DESCRIPTION
-!     Update coefficients of (for?) the order; note that savedVars%pertst2 is the original
+!     Update coefficients of (for?) the order; note that pertst2 is the original
 !     pertst^2.
 ! MRD: Gear can be 1st, 2nd, etc. order
 ! MRD: this could be where it changes it order
@@ -292,7 +293,7 @@ contains
       real*8 :: eup ! pertst^2*order for one order higher than current order
       real*8  :: edwn ! pertst^2*order for one order lower  than current order
 
-      !Write (6,*) 'updateCoefficients called.'
+      Write (6,*) 'updateCoefficients called.'
 
       this%nqqold = this%nqq
       this%kstep  = this%nqq + 1
@@ -341,7 +342,7 @@ contains
       real*8  :: rmstop
       real*8  :: delt1
 
-      !Write (6,*) 'calcInitialTimeStepSize called.'
+      Write (6,*) 'calcInitialTimeStepSize called.'
 
       rmstop = 0.0d0
       do kloop = 1, ktloop
@@ -391,10 +392,9 @@ contains
       integer :: jspc
       real*8  :: errymax
 
-      !Write (6,*) 'calculateErrorTolerances called.'
+      Write (6,*) 'calculateErrorTolerances called.'
 
       ! abtoler1 = failureFraction * abtol(6,ncs) / Min (errmax, 1.0d-03)
-
       do kloop = 1, ktloop
          do jspc = 1, this%num1stOEqnsSolve
             errymax     = gloss(kloop,jspc) / (cnew(kloop,jspc) + this%abtoler1)
@@ -402,12 +402,9 @@ contains
          end do
        end do
 
-
-
        do kloop = 1, ktloop
          errmx2(jlooplo+kloop) = dely(kloop)
        end do
-
 
    end subroutine calculateErrorTolerances
 
@@ -429,6 +426,8 @@ contains
       type (Manager_type) :: this
       integer, intent(in)  :: ncs ! ncs is argument to Smvgear
       type(t_Smv2Saved), intent(inOut) :: savedVars
+
+      Write (6,*) 'startTimeInterval called.'
 
       this%idoub     = 2
       this%nslp      = MBETWEEN
@@ -473,6 +472,8 @@ contains
          integer, intent(in)  :: ifsun ! ifsun is an argument to Smvgear
          real*8,  intent(in)  :: hmaxnit
          type(t_Smv2Saved), intent(inOut) :: savedVars
+
+         !Write (6,*) 'initializeGear called.'
 
          this%numFailOldJacobian     = 0
          this%jFail     = 0

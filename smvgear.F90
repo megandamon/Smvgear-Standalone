@@ -340,35 +340,7 @@
 #     include "setkin_ibcb.h"
 !     =======================
 
-      managerObject%numFailOldJacobian     = 0
-      managerObject%jfail     = 0
-      managerObject%numFailErrorTest     = 0
-      managerObject%numFailAfterPredict     = 0
-      managerObject%numCallsPredict   = 0
-      managerObject%numSuccessTdt    = 0
-      managerObject%numCallsVelocity   = 0
-      managerObject%numErrTolDecreases  = 0
-
-      managerObject%rmsError    = 1.0d0
-
-      managerObject%num1stOEqnsSolve    = savedVars%ischang(ncs)
-      managerObject%order     = managerObject%num1stOEqnsSolve
-      managerObject%order_inv = 1.0d0 / managerObject%num1stOEqnsSolve
-
-      managerObject%chemTimeInterval = savedVars%timeintv(ncs)
-
-      ncsp      = (ifsun - 1) * ICS + ncs
-
-      managerObject%maxTimeStep = hmaxnit
-      if (ifsun == 1) managerObject%maxTimeStep = savedVars%hmaxday(ncs)
-
-      managerObject%failureFraction   = 1.0d0
-      managerObject%iabove = managerObject%order * 0.4d0
-
-      managerObject%initialError     = Min (savedVars%errmax(ncs), 1.0d-03)
-      managerObject%initialError_inv = 1.0d0 / managerObject%initialError
-
-      managerObject%errmax_ncs_inv = 1.0d0 / savedVars%errmax(ncs)
+      call resetGear (managerObject, ncsp, ncs, ifsun, hmaxnit, savedVars)
 
 
 !     ----------------------------------------------------
