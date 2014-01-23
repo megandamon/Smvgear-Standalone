@@ -821,33 +821,15 @@
         dely(kloop) = 0.0d0
       end do
 
-      if (managerObject%asn1 == 1.0d0) then
-
-        do i = 1, managerObject%num1stOEqnsSolve
-          do kloop = 1, ktloop
-
-            managerObject%dtlos(kloop,i) = managerObject%dtlos(kloop,i) + gloss(kloop,i)
-            cnew(kloop,i)  = conc(kloop,i)  + managerObject%dtlos(kloop,i)
-            errymax        = gloss(kloop,i) * managerObject%chold(kloop,i)
-            dely(kloop)    = dely(kloop)    + (errymax * errymax)
-
-          end do
-        end do
-
-      else
-
-        do i = 1, managerObject%num1stOEqnsSolve
-          do kloop = 1, ktloop
-
-            managerObject%dtlos(kloop,i) = managerObject%dtlos(kloop,i) + gloss(kloop,i)
+       ! MRD: removed an optimization for the case of asn1 = 1  (saves a multiplication per loop)
+      do i = 1, managerObject%num1stOEqnsSolve !*
+         do kloop = 1, ktloop !*
+            managerObject%dtlos(kloop,i) = managerObject%dtlos(kloop,i) + gloss(kloop,i) !*
             cnew(kloop,i)  = conc(kloop,i)  + (managerObject%asn1 * managerObject%dtlos(kloop,i))
-            errymax        = gloss(kloop,i) * managerObject%chold(kloop,i)
-            dely(kloop)    = dely(kloop)    + (errymax * errymax)
-
-          end do
-        end do
-
-      end if
+            errymax        = gloss(kloop,i) * managerObject%chold(kloop,i) !*
+            dely(kloop)    = dely(kloop)    + (errymax * errymax) !*
+         end do
+      end do
 
 
 !     ------------------------------------------------------------------
