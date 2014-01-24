@@ -243,7 +243,6 @@
 
       integer :: i, j, k
       integer :: i1, i2
-      integer :: ifsuccess
       integer :: jb
       integer :: jeval
       integer :: jg1
@@ -286,7 +285,7 @@
       real*8  :: errymax
       real*8  :: hmtim
       real*8  :: r1delt, rdelta
-      real*8  :: rdeltdn, rdeltsm, rdeltup
+      real*8  :: rdeltsm
       real*8  :: real_kstep
       real*8  :: rmsErrorPrevious, rmsrat, rmstop
       real*8  :: xtimestep
@@ -373,7 +372,7 @@
 
       managerObject%hratio    = 0.0d0
       managerObject%asn1      = 1.0d0
-      ifsuccess = 1
+      managerObject%ifsuccess = 1
       managerObject%rdelmax   = 1.0d4
 
 !     ---------------------
@@ -565,7 +564,7 @@
 !     --------------------------------------------------------------
 
 !     ================================
-      IFSUCCESSIF: if (ifsuccess == 1) then
+      IFSUCCESSIF: if (managerObject%ifsuccess == 1) then
 !     ================================
 
         managerObject%rdelmax = 10.0d0
@@ -876,7 +875,7 @@
         managerObject%numFailAfterPredict     = managerObject%numFailAfterPredict + 1
         managerObject%rdelmax   = 2.0d0
         jeval     = 1
-        ifsuccess = 0
+        managerObject%ifsuccess = 0
         managerObject%xelaps    = managerObject%told
         managerObject%rdelt     = fracdec
 
@@ -962,8 +961,8 @@
 
         if (managerObject%jfail <= 6) then
 
-          ifsuccess = 0
-          rdeltup   = 0.0d0
+          managerObject%ifsuccess = 0
+          managerObject%rdeltup   = 0.0d0
 
 !         =========
           go to 400
@@ -971,7 +970,7 @@
 
         else if (managerObject%jfail <= 20) then
 
-          ifsuccess = 0
+          managerObject%ifsuccess = 0
           managerObject%rdelt     = fracdec
 
 !         =========
@@ -1047,7 +1046,7 @@
 
 
         managerObject%jfail     = 0
-        ifsuccess = 1
+        managerObject%ifsuccess = 1
         managerObject%numSuccessTdt    = managerObject%numSuccessTdt + 1
         managerObject%told      = managerObject%xelaps
 
@@ -1197,11 +1196,11 @@
 
         end do
 
-        rdeltup = 1.0d0 / ((managerObject%conp3 * der3max**savedVars%enqq3(managerObject%nqq)) + 1.4d-6)
+        managerObject%rdeltup = 1.0d0 / ((managerObject%conp3 * der3max**savedVars%enqq3(managerObject%nqq)) + 1.4d-6)
 
       else
 
-        rdeltup = 0.0d0
+        managerObject%rdeltup = 0.0d0
 
       end if
 
@@ -1210,63 +1209,7 @@
  400  continue
 !     ========
 
-
-!     ------------------------------------------------------------
-!     Estimate the time step ratio (rdeltsm) at the current order.
-!     der2max was calculated during the error tests earlier.
-!     ------------------------------------------------------------
-
-      rdeltsm = 1.0d0 / ((managerObject%conp2 * managerObject%der2max**savedVars%enqq2(managerObject%nqq)) + 1.2d-6)
-
-
-!     ------------------------------------------------------------------
-!     Estimate the time step ratio (rdeltdn) at one order lower than
-!     the current order.  if nqq = 1, then we cannot test a lower order.
-!     ------------------------------------------------------------------
-
-      if (managerObject%nqq > 1) then
-
-        do kloop = 1, ktloop
-          dely(kloop) = 0.0d0
-        end do
-
-        kstepisc = (managerObject%kstep - 1) * managerObject%num1stOEqnsSolve
-
-!c
-        do kloop = 1, ktloop
-          do jspc = 1, managerObject%num1stOEqnsSolve
-
-            i = jspc + kstepisc
-
-            errymax     = conc(kloop,i) * managerObject%chold(kloop,jspc)
-            dely(kloop) = dely(kloop) + (errymax * errymax)
-
-          end do
-
-        end do
-
-        der1max = 0.0d0
-
-        do kloop = 1, ktloop
-          if (dely(kloop) > der1max) then
-            der1max = dely(kloop)
-          end if
-        end do
-
-        rdeltdn = 1.0d0 / ((managerObject%conp1 * der1max**savedVars%enqq1(managerObject%nqq)) + 1.3d-6)
-
-      else
-
-        rdeltdn = 0.0d0
-
-      end if
-
-
-!     -----------------------------------------------------------------
-!     Find the largest of the predicted time step ratios of each order.
-!     -----------------------------------------------------------------
-
-      managerObject%rdelt = Max (rdeltup, rdeltsm, rdeltdn)
+      call estimateTimeStepRatio (managerObject, ktloop, dely, conc, savedVars)
 
 
 !     ---------------------------------------------------------------
@@ -1275,7 +1218,7 @@
 !     re-checking the time step and order.
 !     ---------------------------------------------------------------
 
-      if ((managerObject%rdelt < 1.1d0) .and. (ifsuccess == 1)) then
+      if ((managerObject%rdelt < 1.1d0) .and. (managerObject%ifsuccess == 1)) then
 
         managerObject%idoub = 3
 
@@ -1289,7 +1232,7 @@
 !       to <= 1, when ifsuccess = 0 since this is less efficient.
 !       --------------------------------------------------------------
 
-      else if (managerObject%rdelt == rdeltdn) then
+      else if (managerObject%rdelt == managerObject%rdeltdn) then
 
         managerObject%nqq = managerObject%nqq - 1
 
@@ -1299,7 +1242,7 @@
 !       for the higher order.
 !       ---------------------------------------------------------------
 
-      else if (managerObject%rdelt == rdeltup) then
+      else if (managerObject%rdelt == managerObject%rdeltup) then
 
         real_kstep = managerObject%kstep
         consmult   = savedVars%aset(managerObject%nqq,managerObject%kstep) / real_kstep

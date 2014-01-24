@@ -23,6 +23,9 @@ module GmiManager_mod
    public :: tightenErrorTolerance
    public :: calculateNewRmsError
    public :: testAccumulatedError
+   public :: estimateTimeStepRatio
+   public :: resetBeforeUpdate
+
 
 ! MRD: add type bound procedures here
 ! can remove "_type"
@@ -84,10 +87,95 @@ module GmiManager_mod
                ! on a successful return; dtlos(kloop,i) contains the estimated
                ! one step local error in cnew
       real*8  :: chold (KBLOOP, MXGSAER) ! 1 / (reltol * cnew + abtol); multiply chold by local errors in different error tests
-
+      real*8  :: rdeltdn ! time step ratio at one order lower  than current order
+      real*8  :: rdeltup ! time step ratio at one order higher than current order
+      integer :: ifsuccess ! identifies whether step is successful (=1) or not (=0)
     end type Manager_type
 
 contains
+
+!-----------------------------------------------------------------------------
+!
+! ROUTINE
+!   resetBeforeUpdate
+! DESCRIPTION
+! Created by: Megan Rose Damon
+!-----------------------------------------------------------------------------
+   subroutine resetBeforeUpdate (this)
+      type (Manager_type) :: this
+
+      this%hratio    = 0.0d0
+      this%asn1      = 1.0d0
+      this%ifsuccess = 1
+      this%rdelmax   = 1.0d4
+
+   end subroutine resetBeforeUpdate
+
+!-----------------------------------------------------------------------------
+!
+! ROUTINE
+!   estimateTimeStepRatio
+! DESCRIPTION
+! Created by: Megan Rose Damon
+!-----------------------------------------------------------------------------
+   subroutine estimateTimeStepRatio (this, ktloop, dely, conc, savedVars)
+
+      ! ----------------------
+      ! Argument declarations.
+      ! ----------------------
+      type (Manager_type) :: this
+      integer, intent(in) :: ktloop
+      real*8, intent(inout)  :: dely  (KBLOOP)
+      real*8, intent(in)  :: conc  (KBLOOP, MXGSAER*7)
+      type(t_Smv2Saved), intent(inOut) :: savedVars
+
+      integer :: kloop, kstepisc, jspc, i
+      real*8  :: errymax, der1max
+      real*8  :: rdeltsm   ! time step ratio at current order
+
+      !     Estimate the time step ratio (rdeltsm) at the current order.
+      !     der2max was calculated during the error tests earlier.
+      rdeltsm = 1.0d0 / ((this%conp2 * this%der2max**savedVars%enqq2(this%nqq)) + 1.2d-6)
+
+      !     Estimate the time step ratio (rdeltdn) at one order lower than
+      !     the current order.  if nqq = 1, then we cannot test a lower order
+      if (this%nqq > 1) then
+
+         do kloop = 1, ktloop
+            dely(kloop) = 0.0d0
+         end do
+
+         kstepisc = (this%kstep - 1) * this%num1stOEqnsSolve
+
+         do kloop = 1, ktloop
+            do jspc = 1, this%num1stOEqnsSolve
+               i = jspc + kstepisc
+               errymax     = conc(kloop,i) * this%chold(kloop,jspc)
+               dely(kloop) = dely(kloop) + (errymax * errymax)
+            end do
+         end do
+
+        der1max = 0.0d0
+
+        do kloop = 1, ktloop
+          if (dely(kloop) > der1max) then
+            der1max = dely(kloop)
+          end if
+        end do
+
+        this%rdeltdn = 1.0d0 / &
+            ((this%conp1 * der1max**savedVars%enqq1(this%nqq)) + 1.3d-6)
+
+      else
+        this%rdeltdn = 0.0d0
+      end if
+
+      !     Find the largest of the predicted time step ratios of each order.
+      this%rdelt = Max (this%rdeltup, rdeltsm, this%rdeltdn)
+
+
+   end subroutine estimateTimeStepRatio
+
 
 !-----------------------------------------------------------------------------
 !
