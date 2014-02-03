@@ -270,24 +270,19 @@
 !     delt      : current time step (s)
 !     MAX_REL_CHANGE     : max relative change in delt*aset(1) before Pderiv is called
 !     order     : floating point value of num1stOEqnsSolve, the order of # of ODEs
-!     rdeltdn   : time step ratio at one order lower  than current order
-!     rdeltsm   : time step ratio at current order
-!     rdeltup   : time step ratio at one order higher than current order
 !     ------------------------------------------------------------------------
 
       real*8  :: asnqqj
       real*8  :: cnewylow
       real*8  :: cnw
       real*8  :: consmult
-      real*8  :: delt, delt1
-      real*8  :: der1max, der3max
+      real*8  :: delt
       real*8  :: dtasn1
+      real*8  :: der1max, der3max
       real*8  :: errymax
-      real*8  :: hmtim
       real*8  :: r1delt, rdelta
-      real*8  :: rdeltsm
       real*8  :: real_kstep
-      real*8  :: rmsErrorPrevious, rmsrat, rmstop
+      real*8  :: rmsErrorPrevious, rmsrat
       real*8  :: xtimestep
 
       real*8, parameter :: MAX_REL_CHANGE = 0.3d0
@@ -311,27 +306,15 @@
       real*8  :: yabst (KBLOOP)
       real*8  :: cest  (KBLOOP, MXGSAER)
       real*8  :: explic(KBLOOP, MXGSAER)
-
       real*8  :: conc  (KBLOOP, MXGSAER*7)
 
       type (Mechanism_type) :: mechanismObject
       type (Manager_type) :: managerObject
       integer :: nondiag     ! # of final matrix positions, excluding diagonal
 
-      mechanismObject%numGridCellsInBlock = ktloop
-      mechanismObject%speciesNumberA = irma
-      mechanismObject%speciesNumberB = irmb
-      mechanismObject%speciesNumberC = irmc
-      mechanismObject%numRxns2 = nfdh2
-      mechanismObject%numRxns3 = nfdh3
-      mechanismObject%numRxns3Drep = nfdrep
 
-!     ----------------
-!     Begin execution.
-!     ----------------
-
-!c    Write (6,*) 'Smvgear called.'
-
+      call initializeMechanism (mechanismObject, ktloop, irma, &
+                              &  irmb, irmc, nfdh2, nfdh3, nfdrep)
 
       nact = nnact
 
@@ -355,7 +338,6 @@
 !     -------------------------------
 !     Initialize concentration array.
 !     -------------------------------
-
       do jnew = 1, managerObject%num1stOEqnsSolve
         do kloop = 1, ktloop
           cnew(kloop, jnew) = corig(kloop, jnew)
@@ -370,10 +352,7 @@
  150  continue
 !     ========
 
-      managerObject%hratio    = 0.0d0
-      managerObject%asn1      = 1.0d0
-      managerObject%ifsuccess = 1
-      managerObject%rdelmax   = 1.0d4
+      call resetBeforeUpdate (managerObject)
 
 !     ---------------------
 !     Initialize photrates.
@@ -490,7 +469,7 @@
          delt, ncs, savedVars)
 
 !     -----------------------
-!     Set initial ½ to 1.
+!     Set initial order to 1.
 !     -----------------------
 
       managerObject%nqqold = 0
@@ -504,7 +483,6 @@
 !     --------------------------------------------------------------
 
       do jspc = 1, managerObject%num1stOEqnsSolve
-
         j = jspc + managerObject%num1stOEqnsSolve
 
         do kloop = 1, ktloop
@@ -725,27 +703,16 @@
 
       if (jeval == 1) then
 
-        r1delt = -managerObject%asn1 * delt
-
-         ! MRD: The below functionality has replaced the subroutine Pderiv
-         !       ===========
-         !        call Pderiv  &
-         !       ===========
-         !         (mechanismObject, num1stOEqnsSolve, ncsp, nfdh2, nfdh3, nfdl1, nfdl2, irma, irmb,  &
-         !     &   irmc, r1delt, cnew, rrate, npderiv, cc2, urate, nfdh1)
-
-
+         r1delt = -managerObject%asn1 * delt
          nondiag  = savedVars%iarray(ncsp) - managerObject%num1stOEqnsSolve ! iarray is in common block
-         mechanismObject%numRxns1 = nfdh2 + savedVars%ioner(ncsp)
 
-         call calculateTermOfJacobian (mechanismObject, cnew, urate)
+         call calculateTermOfJacobian (mechanismObject, cnew, urate, savedVars%ioner(ncsp))
 
          managerObject%numCallsPredict  = managerObject%numCallsPredict + 1
-         ! MRD: iarray, npdhi, and npdlo are in common blocks
          call calculatePredictor (nondiag, savedVars%iarray(ncsp), mechanismObject%numGridCellsInBlock, &
             &  savedVars%npdhi(ncsp), savedVars%npdlo(ncsp), r1delt, urate, cc2, savedVars)
 
-      ! MRD: End block of code that was in Pderiv
+         ! MRD: End block of code that was in Pderiv
 
 !DIR$   INLINE
 !       ===========
