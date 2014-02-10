@@ -4,6 +4,7 @@ program doSmv2Solver
       use GmiSolver_SavedVariables_mod, only : t_Smv2Saved
       use Physproc_mod
       use timing_mod
+      use ChemTable_mod
 
       implicit none
 
@@ -30,7 +31,11 @@ program doSmv2Solver
       character(:), allocatable :: rankString
       character(:), allocatable :: zeroString
 
-      integer :: rankSize
+      character(len=128) :: tempText
+      real*8 :: MassInit,MassFin
+      integer :: Tinit, Tfin, Tclockrate
+
+      integer :: rankSize, i1
       integer, parameter :: MAX_RANK_SIZE = 4
 
       integer mpiError, rc, numTasks
@@ -118,6 +123,10 @@ program doSmv2Solver
 
       commuWorld = MPI_COMM_WORLD
 
+      MassInit = sum(physprocVars%speciesConst)
+      call CalcTabl(GenChem,1,1,1,savedVars)
+      Call system_clock(Tinit)
+
       print*, "Calling Physproc"
       call Physproc (savedVars, physprocVars%doQqjkInchem, physprocVars%doSurfEmissInChem, &
                physprocVars%prQqjk, physprocVars%prSmv2, physprocVars%numLat, physprocVars%numLong, physprocVars%numVert, savedVars%ifreord,&
@@ -132,11 +141,37 @@ program doSmv2Solver
                physprocVars%i1, physprocVars%i2, physprocVars%ju1, physprocVars%j2, physprocVars%k1, physprocVars%k2, physprocVars%numQks, &
                physprocVars%numQjs, physprocVars%numActive, &
                commuWorld)
+      Call system_clock(Tfin,Tclockrate)
       print*, "Returned from Physproc"
 
       !     ----------------
       !    Write output data and deallocate variables
       !     ----------------
+
+      open(file=trim("cxfin"),unit=30,form="formatted")
+      write(30,*) "cx(itloop,IGAS) = ", physprocVars%itloop, " by ", IGAS
+      do i1=1,physprocVars%itloop
+         write(30,*) "Cell: ",i1, "Max/Min = ",log10(maxval(physprocVars%speciesConst(i1,:))), &
+         & "/",log10(minval(physprocVars%speciesConst(i1,:)))
+         write(30,'(es22.15)') physprocVars%speciesConst(i1,:)
+      end do
+      close(30)
+
+      MassFin = sum(physprocVars%speciesConst)
+
+      Write(*,*) 'Relative mass change = ', (MassFin-MassInit)/MassInit
+      Write(*,*) 'Reordering = ', savedVars%ifreord
+      Write(*,*) 'Blocksize = ', savedVars%kuloop
+
+      Print '(" Time taken = ", f9.6, " seconds.")', Real(Tfin-Tinit)/Real(Tclockrate)
+
+      !K: Species 61 info
+      write(*,*) 'Species 61:'
+      write(*,*) '82 - > ', savedVars%inewold(82,1)
+      write(*,*) 'Inputs = ', count(GenChem%RxnIn==82)
+      write(*,*) 'Outputs = ', count(GenChem%RxnOut==82)
+      write(*,*) 'Frac-Out = ', count(GenChem%FracRxnOut==82)
+
       call writeSmv2Chem1Exit(smv2Chem1Exit,savedVars)
       call writeSmv2Chem2Exit(smv2Chem2Exit,savedVars)
       call writePhysprocVars(physprocVars, physProcExit)
