@@ -144,7 +144,6 @@
 !   vdiag    : 1 / current diagonal term of the decomposed matrix
 !   rrate    : rate constants
 !   trate    : rxn rate (moles l^-1-h2o s^-1 or # cm^-3 s^-1 (?))
-!   urate    : term of Jacobian (J) = partial derivative
 !
 !-----------------------------------------------------------------------------
 
@@ -155,7 +154,8 @@
      &   fracdec, hmaxnit, pr_nc_period, tdt, do_cell_chem, irma, irmb,  &
      &   irmc, jreorder, jphotrat, ntspec, inewold, denair, corig,  &
      &   pratk1, yemis, smvdm, nfdh1, errmx2, cc2, cnew, gloss, vdiag,  &
-     &   rrate, trate, urate, yda, qqkda, qqjda, &
+     &   rrate, &
+     &   yda, qqkda, qqjda, &
      &   CTMi1, CTMi2, CTMju1, CTMj2, CTMk1, CTMk2, &
      &   num_qks, num_qjs, num_active)
 
@@ -221,8 +221,6 @@
       real*8,  intent(inout) :: smvdm (KBLOOP, MXGSAER)
       real*8,  intent(inout) :: vdiag (KBLOOP, MXGSAER)
       real*8,  intent(inout) :: rrate (KBLOOP, NMTRATE)
-      real*8,  intent(inout) :: trate (KBLOOP, NMTRATE*2)
-      real*8,  intent(inout) :: urate (KBLOOP, NMTRATE, 3)
 
       integer, intent(out) :: nfdh1
 
@@ -362,15 +360,14 @@
 !     ===========
       call Update  &
 !     ===========
-     &  (savedVars, ktloop, nallr, ncs, ncsp, jphotrat, pratk1, rrate, trate)
+     &  (savedVars, ktloop, nallr, ncs, ncsp, jphotrat, pratk1, rrate)
 !DIR$ NOINLINE
 
 
       mechanismObject%rateConstants = rrate
       mechanismObject%numActiveReactants = nallr
 
-      call velocity (mechanismObject, managerObject%num1stOEqnsSolve, ncsp, cnew, gloss, trate, nfdh1, savedVars)
-
+      call velocity (mechanismObject, managerObject%num1stOEqnsSolve, ncsp, cnew, gloss, nfdh1, savedVars)
       managerObject%numCallsVelocity = managerObject%numCallsVelocity + 1
 
       ! MRD: can this be removed?
@@ -705,13 +702,12 @@
 
          r1delt = -managerObject%asn1 * delt
          nondiag  = savedVars%iarray(ncsp) - managerObject%num1stOEqnsSolve ! iarray is in common block
+         mechanismObject%numRxns1 = nfdh2 + savedVars%ioner(ncsp)
 
-         call calculateTermOfJacobian (mechanismObject, cnew, urate, savedVars%ioner(ncsp))
-
+         !K: Need to send whole mech object to get rrate in predictor, also need cnew
+         call calculatePredictor (nondiag, savedVars%iarray(ncsp), mechanismObject, cnew, &
+            &  savedVars%npdhi(ncsp), savedVars%npdlo(ncsp), r1delt, cc2, savedVars)
          managerObject%numCallsPredict  = managerObject%numCallsPredict + 1
-         call calculatePredictor (nondiag, savedVars%iarray(ncsp), mechanismObject%numGridCellsInBlock, &
-            &  savedVars%npdhi(ncsp), savedVars%npdlo(ncsp), r1delt, urate, cc2, savedVars)
-
          ! MRD: End block of code that was in Pderiv
 
 !DIR$   INLINE
@@ -739,7 +735,7 @@
 
 !   print*, "in 300, evaluating first derivative"
 
-     call velocity (mechanismObject, managerObject%num1stOEqnsSolve, ncsp, cnew, gloss, trate, nfdh1, savedVars)
+     call velocity (mechanismObject, managerObject%num1stOEqnsSolve, ncsp, cnew, gloss, nfdh1, savedVars)
      managerObject%numCallsVelocity = managerObject%numCallsVelocity + 1
 
       call setBoundaryConditions (mechanismObject, itloop, &
@@ -1005,7 +1001,7 @@
 !         =================
      &      (savedVars, jlooplo, ktloop, pr_nc_period, tdt, managerObject%told, &
              do_cell_chem, jreorder, inewold, denair, cnew, xtimestep, &
-     &       yda, qqkda, qqjda, urate(:,:,1), pratk1, &
+     &       yda, qqkda, qqjda, rrate, pratk1, &
      &       ilong, ilat, ivert, itloop, &
      &       CTMi1, CTMi2, CTMju1, CTMj2, CTMk1, CTMk2, &
      &       num_qks, num_qjs, num_active)
@@ -1927,7 +1923,7 @@
 !-----------------------------------------------------------------------------
 
       subroutine Update  &
-     &  (savedVars, ktloop, nallr, ncs, ncsp, jphotrat, pratk1, rrate, trate)
+     &  (savedVars, ktloop, nallr, ncs, ncsp, jphotrat, pratk1, rrate)
 
       use GmiSolver_SavedVariables_mod, only : t_Smv2Saved
 
@@ -1949,7 +1945,6 @@
       real*8,  intent(in)  :: pratk1  (KBLOOP, IPHOT)
 
       real*8,  intent(inout) :: rrate(KBLOOP, NMTRATE)
-      real*8,  intent(inout) :: trate(KBLOOP, NMTRATE*2)
 
       type(t_Smv2Saved), intent(inOut) :: savedVars
 
@@ -1983,25 +1978,6 @@
         end do
 
       end do
-
-
-!     ------------------------------------------------------
-!     Set rates where photoreaction has no active loss term.
-!     ------------------------------------------------------
-
-      do i = 1, savedVars%nolosp(ncsp)
-
-        nk  = savedVars%nknlosp(i,ncs)
-        nkn = savedVars%newfold(nk,ncs)
-        nh  = nkn + nallr
-
-        do kloop = 1, ktloop
-          trate(kloop,nkn) =  rrate(kloop,nkn)
-          trate(kloop,nh)  = -trate(kloop,nkn)
-        end do
-
-      end do
-
 
       return
 

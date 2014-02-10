@@ -634,7 +634,6 @@
 !     rrate  : rate constants
 !              (s^-1, cm^3/molec*s, cm^6/molec*s^2, or cm^9/molec*s^3)
 !     trate  : rxn rate (moles l^-1-h2o s^-1 or # cm^-3 s^-1 (?))
-!     urate  : term of Jacobian (J) = partial derivative
 !     -----------------------------------------------------------------------
 
       real*8  :: cc2   (KBLOOP, 0:MXARRAY)  = 0.0d0
@@ -649,8 +648,7 @@
       real*8  :: vdiag (KBLOOP, MXGSAER)    = 0.0d0
 
       real*8  :: rrate (KBLOOP, NMTRATE)    = 0.0d0
-      real*8  :: trate (KBLOOP, NMTRATE*2)  = 0.0d0
-      real*8  :: urate (KBLOOP, NMTRATE, 3) = 0.0d0
+      real*8  :: dummy (KBLOOP, NMTRATE)    = 0.0d0
 
 !     ===============================
 !$    integer :: Omp_Get_Max_Threads
@@ -698,14 +696,16 @@
 !$omp&  default(shared) &
 !$omp&  schedule(runtime) &
 !$omp&  private(j, jgas, jnew, kblk, np) &
-!$omp&  private(jloop, jlooplo, kloop, ktloop) &
-!$omp&  private(nallr, nfdrep, nfdrep1) &
-!$omp&  private(nfdh1, nfdh2, nfdh3, nfdl1, nfdl2) &
-!$omp&  private(cblk, cc2, cnew, corig) &
-!$omp&  private(denair, gloss) &
-!$omp&  private(irma, irmb, irmc) &
-!$omp&  private(pratk1, smvdm, vdiag) &
-!$omp&  private(rrate, trate, urate)
+!$omp&  private(jloop,jlooplo,kloop) &
+!$omp&  firstprivate(ktloop) &
+!$omp&  firstprivate(nallr, nfdrep, nfdrep1) &
+!$omp&  firstprivate(nfdh1, nfdh2, nfdh3, nfdl1, nfdl2) &
+!$omp&  firstprivate(cblk, cc2, cnew, corig) &
+!$omp&  firstprivate(denair, gloss) &
+!$omp&  firstprivate(irma, irmb, irmc) &
+!$omp&  firstprivate(pratk1, smvdm, vdiag) &
+!$omp&  firstprivate(dummy,rrate)
+
 
 !     ======================
       do kblk = 1, nblockuse
@@ -741,12 +741,13 @@
 !         The urate=arate loop is where the 2D diurnal averaging
 !         factors for the thermal reactions are passed in.  urate
 !         later is used for another purpose.
+!         K: urate replaced by "dummy"
 !         -------------------------------------------------------
 
           do j = 1, numKineticRxns(gasChemistryType)
             do kloop = 1, ktloop
               jloop            = lreorder(jlooplo+kloop)
-              urate(kloop,j,1) = arate(jloop,j)
+              dummy(kloop,j)   = arate(jloop,j)
             end do
           end do
 
@@ -761,8 +762,8 @@
           call Calcrate  &
 !         =============
      &      (ifSun, airDensityIndex, nitrogenSpNum, oxygenSpNum, numZones, jlooplo,  &
-     &       ktloop, gasChemistryType, jreorder, numKineticRxns, numActInActGases, cx, urate,  &
-     &       denair, pratk1, cblk, rrate, trate, nallr, nfdh1, nfdh2,  &
+     &       ktloop, gasChemistryType, jreorder, numKineticRxns, numActInActGases, cx, dummy,  &
+     &       denair, pratk1, cblk, rrate, nallr, nfdh1, nfdh2,  &
      &       nfdh3, nfdl1, nfdl2, nfdrep, nfdrep1, irma, irmb, irmc,  &
      &       corig, smvdm, savedVars)
 
@@ -779,8 +780,8 @@
      &       nfdrep, nfdrep1, fractionDecrease, maxTimeStepNight, ncOutPeriod, modelTimeStep,  &
      &       doCellChem, irma, irmb, irmc, jreorder, jPhotRate,  &
      &       numActInActGases, origSpcNumber, denair, corig, pratk1, yemis, smvdm,  &
-     &       nfdh1, errmx2, cc2, cnew, gloss, vdiag, rrate, trate,  &
-     &       urate, yda, qqkda, qqjda, &
+     &       nfdh1, errmx2, cc2, cnew, gloss, vdiag, rrate,  &
+     &       yda, qqkda, qqjda, &
      &       i1, i2, ju1, j2, k1, k2, num_qks, num_qjs, num_active)
 
 !         -----------------------------------------------------
@@ -880,8 +881,8 @@
 
       subroutine Calcrate  &
      &  (ifSun, airDensityIndex, nitrogenSpNum, oxygenSpNum, numZones, jlooplo, ktloop,  &
-     &   gasChemistryType, jreorder, numKineticRxns, numActInActGases, cx, urate, denair, pratk1,  &
-     &   cblk, rrate, trate, nallr, nfdh1, nfdh2, nfdh3, nfdl1, nfdl2,  &
+     &   gasChemistryType, jreorder, numKineticRxns, numActInActGases, cx, dummy, denair, pratk1,  &
+     &   cblk, rrate, nallr, nfdh1, nfdh2, nfdh3, nfdl1, nfdl2,  &
      &   nfdrep, nfdrep1, irma, irmb, irmc, corig, smvdm, savedVars)
 
       use GmiSolver_SavedVariables_mod, only : t_Smv2Saved
@@ -908,13 +909,13 @@
       integer, intent(in)  :: numKineticRxns  (ICS)
       integer, intent(in)  :: numActInActGases  (ICS)
       real*8,  intent(in)  :: cx      (numZones, IGAS)
-      real*8,  intent(in)  :: urate   (KBLOOP, NMTRATE, 3)
+      !K: Fix the sloppy use of dummy
+      real*8,  intent(inout)  :: dummy (KBLOOP, NMTRATE)
 
       real*8,  intent(inout) :: denair(ktloop)
       real*8,  intent(inout) :: pratk1(KBLOOP, IPHOT)
       real*8,  intent(inout) :: cblk  (KBLOOP, MXGSAER)
       real*8,  intent(inout) :: rrate (KBLOOP, NMTRATE)
-      real*8,  intent(inout) :: trate (KBLOOP, NMTRATE*2)
 
       integer, intent(out) :: nallr
       integer, intent(out) :: nfdh1,  nfdh2, nfdh3
@@ -956,7 +957,7 @@
 
       do nk = 1, numKineticRxns(gasChemistryType)
         do kloop = 1, ktloop
-          rrate(kloop,nk) = urate(kloop,nk,1)
+          rrate(kloop,nk) = dummy(kloop,nk)
         end do
       end do
 
@@ -1073,29 +1074,18 @@
 
       do nk = 1, savedVars%ntrates(gasChemistryType)
         do kloop = 1, ktloop
-          trate(kloop,nk) = rrate(kloop,nk)
+          dummy(kloop,nk) = rrate(kloop,nk)
         end do
       end do
 
       do nkn = 1, nallr
         nk = savedVars%noldfnew(nkn,gasChemistryType)
         do kloop = 1, ktloop
-          rrate(kloop,nkn) = trate(kloop,nk)
+          rrate(kloop,nkn) = dummy(kloop,nk)
         end do
       end do
 
 
-!     ----------------------------------------------------------------
-!     Set kinetic and photo rates where reaction has no active losses.
-!     ----------------------------------------------------------------
-
-      do nkn = nfdl0, nallr
-        nh = nkn + nallr
-        do kloop = 1, ktloop
-          trate(kloop,nkn) =  rrate(kloop,nkn)
-          trate(kloop,nh)  = -trate(kloop,nkn)
-        end do
-      end do
 
 
 !     ---------------------------------------------------------------
