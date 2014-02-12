@@ -201,9 +201,11 @@ module ChemTable_mod
       do i=1,Nrxn
          if (Tabl%isFracRxn(i)) then
             nfrac = nfrac+1
-            Print '("Reaction ", i4, " [",i2, " -> ",i2,"/",i2,"F]")', i,Tabl%RxnNumIn(i),Tabl%RxnNumOut(i),Tabl%FracRxnNumOut(nfrac)
+            Print '("Reaction ", i4, " [",i2, " -> ",i2,"/",i2,"F]")', i,&
+                 & Tabl%RxnNumIn(i),Tabl%RxnNumOut(i),Tabl%FracRxnNumOut(nfrac)
          else
-            Print '("Reaction ", i4, " [",i2, " -> ",i2,"]")', i,Tabl%RxnNumIn(i),Tabl%RxnNumOut(i)
+            Print '("Reaction ", i4, " [",i2, " -> ",i2,"]")', i,&
+                 & Tabl%RxnNumIn(i),Tabl%RxnNumOut(i)
          end if
          Print '("     In  : ",$)'
          do j=1,Tabl%RxnNumIn(i)
