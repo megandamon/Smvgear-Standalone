@@ -310,25 +310,17 @@
 
       call resetGear (managerObject, ncsp, ncs, ifsun, hmaxnit, savedVars)
 
+ 100  continue
 !     ----------------------------------------------------
 !     Start time interval or re-enter after total failure.
 !     ----------------------------------------------------
-
-!     ========
- 100  continue
-!     ========
-
       call startTimeInterval (managerObject, ncs, savedVars)
       call initConcentrationArray(ktloop, cnew, corig, managerObject)
 
 !     --------------------------------------------------------------------
 !     Re-enter here if total failure or if restarting with new cell block.
 !     --------------------------------------------------------------------
-
-!     ========
  150  continue
-!     ========
-
       call resetBeforeUpdate (managerObject)
 
 !!DIR$ INLINE
@@ -389,35 +381,11 @@
 
       call calcInitialTimeStepSize (managerObject, ktloop, dely, &
          currentTimeStep, ncs, savedVars)
-
-!     -----------------------
-!     Set initial order to 1.
-!     -----------------------
-
-      managerObject%nqqold = 0
-      managerObject%nqq    = 1
-      evaluatePredictor  = 1
-      managerObject%rdelt  = 1.0d0
+      call setInitialOrder (managerObject, evaluatePredictor)
+      call storeInitConcAndDerivatives(managerObject%num1stOEqnsSolve, ktloop, cnewDerivatives, cnew, currentTimeStep, gloss)
 
 
-!     --------------------------------------------------------------
-!     Store initial concentration and first derivatives x time step.
-!     --------------------------------------------------------------
-
-      do jspc = 1, managerObject%num1stOEqnsSolve
-         j = jspc + managerObject%num1stOEqnsSolve
-
-        do kloop = 1, ktloop
-          cnewDerivatives(kloop,jspc) = cnew(kloop,jspc)
-          cnewDerivatives(kloop,j)    = currentTimeStep * gloss(kloop,jspc)
-        end do
-
-      end do
-
-
-!     ========
  200  continue
-!     ========
 
       if (managerObject%nqq /= managerObject%nqqold) call updateCoefficients (managerObject, savedVars)
       call calculateTimeStep (managerObject, currentTimeStep, evaluatePredictor, MAX_REL_CHANGE)
@@ -1003,6 +971,43 @@
       return
 
       end subroutine Smvgear
+
+!-----------------------------------------------------------------------------
+!
+! ROUTINE
+!   storeInitConcAndDerivatives
+! DESCRIPTION
+! Store initial concentration and first derivatives x time step.
+! Created by: Megan Rose Damon
+!-----------------------------------------------------------------------------
+      subroutine storeInitConcAndDerivatives(num1stOEqnsSolve, ktloop, cnewDerivatives, cnew, currentTimeStep, gloss)
+
+         implicit none
+#     include "smv2chem_par.h"
+
+         integer, intent(in) :: num1stOEqnsSolve
+         integer, intent(in) :: ktloop
+         real*8, intent(out) :: cnewDerivatives(KBLOOP, MXGSAER*7)
+         real*8, intent(in) :: cnew(KBLOOP, MXGSAER)
+         real*8, intent(in) :: currentTimeStep
+         real*8, intent(in) :: gloss(KBLOOP, MXGSAER)
+
+         ! local variables
+         integer :: kloop, jspc, j
+
+         do jspc = 1, num1stOEqnsSolve
+            j = jspc + num1stOEqnsSolve
+
+           do kloop = 1, ktloop
+             cnewDerivatives(kloop,jspc) = cnew(kloop,jspc)
+             cnewDerivatives(kloop,j)    = currentTimeStep * gloss(kloop,jspc)
+           end do
+
+         end do
+      end subroutine storeInitConcAndDerivatives
+
+
+
 
       subroutine initConcentrationArray(ktloop, concentrationsNew, concentrationsOld, managerObject)
 

@@ -31,6 +31,18 @@ module GmiManager_mod
    public :: predictConcAndDerivatives
    public :: resetCnewDerivatives
    public :: updateDerivatives
+   public :: setInitialOrder
+   public :: REORDER_GRID_CELLS, SOLVE_CHEMISTRY
+   public :: EVAL_PREDICTOR, DO_NOT_EVAL_PREDICTOR, PREDICTOR_JUST_CALLED
+
+   integer, parameter :: REORDER_GRID_CELLS = 1
+   integer, parameter :: SOLVE_CHEMISTRY = 2
+
+   ! MRD: do these belong here?
+   integer, parameter :: EVAL_PREDICTOR = 1
+   integer, parameter :: DO_NOT_EVAL_PREDICTOR = 0
+   integer, parameter :: PREDICTOR_JUST_CALLED = -1
+
 
 
 ! MRD: add type bound procedures here
@@ -100,6 +112,27 @@ module GmiManager_mod
     end type Manager_type
 
 contains
+
+!-----------------------------------------------------------------------------
+!
+! ROUTINE
+!   setInitialOrder
+! DESCRIPTION
+! Set initial order to 1
+! Created by: Megan Rose Damon
+!-----------------------------------------------------------------------------
+   subroutine setInitialOrder(this, evaluatePredictor)
+      implicit none
+
+      type (Manager_type) :: this
+      integer, intent(out) :: evaluatePredictor
+
+      this%nqqold = 0
+      this%nqq    = 1
+      this%rdelt  = 1.0d0
+
+      evaluatePredictor  = EVAL_PREDICTOR
+   end subroutine setInitialOrder
 
       subroutine updateDerivatives(this, cnewDerivatives, ktloop, savedVars)
          implicit none
