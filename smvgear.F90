@@ -12,8 +12,8 @@
 !   smvgear.F
 !
 ! ROUTINES
-!   Smvgear
 !   Backsub
+!   Smvgear
 !   Decomp
 !   Update
 !
@@ -143,7 +143,7 @@
 !              on output from Backsub
 !   vdiag    : 1 / current diagonal term of the decomposed matrix
 !   rrate    : rate constants
-!   trate    : rxn rate (moles l^-1-h2o s^-1 or # cm^-3 s^-1 (?))
+!   trate    : rxn rate (moles l^-1-h2o s^-1 or # cm^-3 s^-1 (?)) !REMOVED!
 !
 !-----------------------------------------------------------------------------
 
@@ -159,17 +159,15 @@
      &   CTMi1, CTMi2, CTMju1, CTMj2, CTMk1, CTMk2, &
      &   num_qks, num_qjs, num_active)
 
-      use GmiSolver_SavedVariables_mod, only : t_Smv2Saved
       use GmiPrintError_mod, only : GmiPrintError
       use GmiMechanism_mod
       use GmiManager_mod
       use GmiSparseMatrix_mod
-
+      use GmiSolver_SavedVariables_mod, only : t_Smv2Saved
 
       implicit none
 
 #     include "smv2chem_par.h"
-!#     include "smv2chem2.h"
 
 
 !     ----------------------
@@ -202,6 +200,7 @@
       real*8,  intent(in)  :: pr_nc_period
       real*8,  intent(in)  :: tdt
       logical, intent(in)  :: do_cell_chem(ilong, ilat, ivert)
+      !K: irm[a,b,c] can be removed as they are now in GenChem and don't vary with block
       integer, intent(in)  :: irma    (NMTRATE)
       integer, intent(in)  :: irmb    (NMTRATE)
       integer, intent(in)  :: irmc    (NMTRATE)
@@ -232,7 +231,6 @@
 
 !     ------------------------------------------------------------------------
 !
-!     ifsuccess : identifies whether step is successful (=1) or not (=0)
 !     jeval     :  1 => call Pderiv the next time through the corrector steps;
 !                  0 => last step successful and do not need to call Pderiv;
 !                 -1 => Pderiv just called, and do not need to call again
@@ -255,14 +253,12 @@
       integer :: ncsp  ! ncs       => for daytime   gas chemistry
                        ! ncs + ICS => for nighttime gas chemistry
       integer :: nqisc
-
       integer :: ibcb(IGAS)
 
 !     ------------------------------------------------
-!     kgrp : counts # of concs above abtol(i), i = 1..
+!     concAboveAbtolCount : counts # of concs above abtol(i), i = 1..
 !     ------------------------------------------------
-
-      integer :: kgrp(KBLOOP, 5)
+      integer :: concAboveAbtolCount(KBLOOP, 5)
 
 !     ------------------------------------------------------------------------
 !     delt      : current time step (s)
@@ -283,7 +279,7 @@
       real*8  :: rmsErrorPrevious, rmsrat
       real*8  :: xtimestep
 
-      real*8, parameter :: MAX_REL_CHANGE = 0.3d0
+      real*8, parameter  :: MAX_REL_CHANGE = 0.3d0
 
       real*8 :: eup ! pertst^2*order for one order higher than current order
       real*8  :: edwn ! pertst^2*order for one order lower  than current order
@@ -309,7 +305,6 @@
       type (Mechanism_type) :: mechanismObject
       type (Manager_type) :: managerObject
       integer :: nondiag     ! # of final matrix positions, excluding diagonal
-
 
       call initializeMechanism (mechanismObject, ktloop, irma, &
                               &  irmb, irmc, nfdh2, nfdh3, nfdrep)
@@ -338,7 +333,7 @@
 !     -------------------------------
       do jnew = 1, managerObject%num1stOEqnsSolve
         do kloop = 1, ktloop
-          cnew(kloop, jnew) = corig(kloop, jnew)
+          cnew(kloop, jnew) = corig(kloop, jnew) ! why save this?
         end do
       end do
 
@@ -361,17 +356,16 @@
       call Update  &
 !     ===========
      &  (savedVars, ktloop, nallr, ncs, ncsp, jphotrat, pratk1, rrate)
+
 !DIR$ NOINLINE
 
-
+      ! update can be inside the mechanism, and rrate can possibly
+      ! turn to protected, or private
       mechanismObject%rateConstants = rrate
       mechanismObject%numActiveReactants = nallr
 
       call velocity (mechanismObject, managerObject%num1stOEqnsSolve, ncsp, cnew, gloss, nfdh1, savedVars)
       managerObject%numCallsVelocity = managerObject%numCallsVelocity + 1
-
-      ! MRD: can this be removed?
-      mechanismObject%rateConstants = rrate
 
       call setBoundaryConditions (mechanismObject, itloop, &
          & jreorder, jlooplo, ilat, &
@@ -393,7 +387,7 @@
 
         do k = 1, 5
           do kloop = 1, ktloop
-            kgrp(kloop,k) = 0
+            concAboveAbtolCount(kloop,k) = 0
           end do
         end do
 
@@ -403,15 +397,15 @@
             cnw = cnew(kloop,jspc)
 
             if (cnw > savedVars%abtol(1,ncs)) then
-              kgrp(kloop,1) = kgrp(kloop,1) + 1
+              concAboveAbtolCount(kloop,1) = concAboveAbtolCount(kloop,1) + 1
             else if (cnw > savedVars%abtol(2,ncs)) then
-              kgrp(kloop,2) = kgrp(kloop,2) + 1
+              concAboveAbtolCount(kloop,2) = concAboveAbtolCount(kloop,2) + 1
             else if (cnw > savedVars%abtol(3,ncs)) then
-              kgrp(kloop,3) = kgrp(kloop,3) + 1
+              concAboveAbtolCount(kloop,3) = concAboveAbtolCount(kloop,3) + 1
             else if (cnw > savedVars%abtol(4,ncs)) then
-              kgrp(kloop,4) = kgrp(kloop,4) + 1
+              concAboveAbtolCount(kloop,4) = concAboveAbtolCount(kloop,4) + 1
             else if (cnw > savedVars%abtol(5,ncs)) then
-              kgrp(kloop,5) = kgrp(kloop,5) + 1
+              concAboveAbtolCount(kloop,5) = concAboveAbtolCount(kloop,5) + 1
             end if
 
           end do
@@ -419,11 +413,11 @@
 
         do kloop = 1, ktloop
 
-          k1 = kgrp(kloop,1)
-          k2 = kgrp(kloop,2) + k1
-          k3 = kgrp(kloop,3) + k2
-          k4 = kgrp(kloop,4) + k3
-          k5 = kgrp(kloop,5) + k4
+          k1 = concAboveAbtolCount(kloop,1)
+          k2 = concAboveAbtolCount(kloop,2) + k1
+          k3 = concAboveAbtolCount(kloop,3) + k2
+          k4 = concAboveAbtolCount(kloop,4) + k3
+          k5 = concAboveAbtolCount(kloop,5) + k4
 
           if (k1 > managerObject%iabove) then
             yabst(kloop) = savedVars%abtol(1,ncs)
@@ -552,7 +546,7 @@
 
           do k = 1, 5
             do kloop = 1, ktloop
-              kgrp(kloop,k) = 0
+              concAboveAbtolCount(kloop,k) = 0
             end do
           end do
 
@@ -562,15 +556,15 @@
               cnw = cnew(kloop,jspc)
 
               if (cnw > savedVars%abtol(1,ncs)) then
-                kgrp(kloop,1) = kgrp(kloop,1) + 1
+                concAboveAbtolCount(kloop,1) = concAboveAbtolCount(kloop,1) + 1
               else if (cnw > savedVars%abtol(2,ncs)) then
-                kgrp(kloop,2) = kgrp(kloop,2) + 1
+                concAboveAbtolCount(kloop,2) = concAboveAbtolCount(kloop,2) + 1
               else if (cnw > savedVars%abtol(3,ncs)) then
-                kgrp(kloop,3) = kgrp(kloop,3) + 1
+                concAboveAbtolCount(kloop,3) = concAboveAbtolCount(kloop,3) + 1
               else if (cnw > savedVars%abtol(4,ncs)) then
-                kgrp(kloop,4) = kgrp(kloop,4) + 1
+                concAboveAbtolCount(kloop,4) = concAboveAbtolCount(kloop,4) + 1
               else if (cnw > savedVars%abtol(5,ncs)) then
-                kgrp(kloop,5) = kgrp(kloop,5) + 1
+                concAboveAbtolCount(kloop,5) = concAboveAbtolCount(kloop,5) + 1
               end if
 
             end do
@@ -578,11 +572,11 @@
 
           do kloop = 1, ktloop
 
-            k1 = kgrp(kloop,1)
-            k2 = kgrp(kloop,2) + k1
-            k3 = kgrp(kloop,3) + k2
-            k4 = kgrp(kloop,4) + k3
-            k5 = kgrp(kloop,5) + k4
+            k1 = concAboveAbtolCount(kloop,1)
+            k2 = concAboveAbtolCount(kloop,2) + k1
+            k3 = concAboveAbtolCount(kloop,3) + k2
+            k4 = concAboveAbtolCount(kloop,4) + k3
+            k5 = concAboveAbtolCount(kloop,5) + k4
 
             if (k1 > managerObject%iabove) then
               yabst(kloop) = savedVars%abtol(1,ncs)
