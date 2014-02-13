@@ -429,7 +429,7 @@
 !     --------------------------------------------------------------
 
       do jspc = 1, managerObject%num1stOEqnsSolve
-        j = jspc + managerObject%num1stOEqnsSolve
+         j = jspc + managerObject%num1stOEqnsSolve
 
         do kloop = 1, ktloop
           conc(kloop,jspc) = cnew(kloop,jspc)
@@ -462,23 +462,7 @@
 !     -------------------------------------------------------------------
 
       if (managerObject%rdelt /= 1.0d0) then
-
-        rdelta = 1.0d0
-        i1     = 1
-
-        do j = 2, managerObject%kstep
-
-          rdelta = rdelta * managerObject%rdelt
-          i1     = i1 + managerObject%num1stOEqnsSolve
-
-          do i = i1, i1 + (managerObject%num1stOEqnsSolve-1)
-            do kloop = 1, ktloop
-              conc(kloop,i) = conc(kloop,i) * rdelta
-            end do
-          end do
-
-        end do
-
+         call scaleDerivatives (managerObject, ktloop, conc)
       end if
 
 
@@ -499,69 +483,12 @@
 
         if (Mod (managerObject%numSuccessTdt, 3) == 2) then
 
-          do k = 1, 5
-            do kloop = 1, ktloop
-              concAboveAbtolCount(kloop,k) = 0
-            end do
-          end do
-
-          do jspc = 1, managerObject%num1stOEqnsSolve
-            do kloop = 1, ktloop
-
-              cnw = cnew(kloop,jspc)
-
-              if (cnw > savedVars%abtol(1,ncs)) then
-                concAboveAbtolCount(kloop,1) = concAboveAbtolCount(kloop,1) + 1
-              else if (cnw > savedVars%abtol(2,ncs)) then
-                concAboveAbtolCount(kloop,2) = concAboveAbtolCount(kloop,2) + 1
-              else if (cnw > savedVars%abtol(3,ncs)) then
-                concAboveAbtolCount(kloop,3) = concAboveAbtolCount(kloop,3) + 1
-              else if (cnw > savedVars%abtol(4,ncs)) then
-                concAboveAbtolCount(kloop,4) = concAboveAbtolCount(kloop,4) + 1
-              else if (cnw > savedVars%abtol(5,ncs)) then
-                concAboveAbtolCount(kloop,5) = concAboveAbtolCount(kloop,5) + 1
-              end if
-
-            end do
-          end do
-
-          do kloop = 1, ktloop
-
-            k1 = concAboveAbtolCount(kloop,1)
-            k2 = concAboveAbtolCount(kloop,2) + k1
-            k3 = concAboveAbtolCount(kloop,3) + k2
-            k4 = concAboveAbtolCount(kloop,4) + k3
-            k5 = concAboveAbtolCount(kloop,5) + k4
-
-            if (k1 > managerObject%iabove) then
-              yabst(kloop) = savedVars%abtol(1,ncs)
-            else if (k2 > managerObject%iabove) then
-              yabst(kloop) = savedVars%abtol(2,ncs)
-            else if (k3 > managerObject%iabove) then
-              yabst(kloop) = savedVars%abtol(3,ncs)
-            else if (k4 > managerObject%iabove) then
-              yabst(kloop) = savedVars%abtol(4,ncs)
-            else if (k5 > managerObject%iabove) then
-              yabst(kloop) = savedVars%abtol(5,ncs)
-            else
-              yabst(kloop) = savedVars%abtol(6,ncs)
-            end if
-
-          end do
+            call calcNewAbsoluteErrorTolerance (managerObject, cnew, concAboveAbtolCount, &
+               &  ktloop, yabst, ncs, savedVars)
 
         end if
 
-!c
-        do kloop = 1, ktloop
-          do jspc = 1, managerObject%num1stOEqnsSolve
-
-            managerObject%chold(kloop,jspc) =  &
-     &        managerObject%reltol3 /  &
-     &        (Max (cnew(kloop,jspc), 0.0d0) +  &
-     &         (yabst(kloop) * managerObject%reltol2))
-
-          end do
-        end do
+         call updateChold (managerObject, ktloop, cnew, yabst)
 
 !     ==================
       end if IFSUCCESSIF
@@ -629,7 +556,6 @@
  250  continue
 !     ========
 
-
       l3 = 0
 
       do jspc = 1, managerObject%num1stOEqnsSolve
@@ -657,8 +583,10 @@
          call calculatePredictor (nondiag, savedVars%iarray(ncsp), mechanismObject, cnew, &
             &  savedVars%npdhi(ncsp), savedVars%npdlo(ncsp), r1delt, cc2, savedVars)
          managerObject%numCallsPredict  = managerObject%numCallsPredict + 1
+
          ! MRD: End block of code that was in Pderiv
 
+         !K: Consider un-inlining this.
 !DIR$   INLINE
 !       ===========
         call Decomp  &
@@ -685,6 +613,7 @@
 !   print*, "in 300, evaluating first derivative"
 
      call velocity (mechanismObject, managerObject%num1stOEqnsSolve, ncsp, cnew, gloss, nfdh1, savedVars)
+
      managerObject%numCallsVelocity = managerObject%numCallsVelocity + 1
 
       call setBoundaryConditions (mechanismObject, itloop, &
@@ -715,7 +644,8 @@
 !     Solve the linear system of equations with the corrector error;
 !     Backsub solves backsubstitution over matrix of partial derivs.
 !     --------------------------------------------------------------
-
+! MRD: goes in gear b/c manager doesn't know about backsubstitution
+! As part of gear's timestep it calls backsub
 !     ============
       call Backsub  &
 !     ============
@@ -732,7 +662,7 @@
         dely(kloop) = 0.0d0
       end do
 
-       ! MRD: removed an optimization for the case of asn1 = 1  (saves a multiplication per loop)
+      ! MRD: removed an optimization for the case of asn1 = 1  (saves a multiplication per loop)
       do i = 1, managerObject%num1stOEqnsSolve !*
          do kloop = 1, ktloop !*
             managerObject%dtlos(kloop,i) = managerObject%dtlos(kloop,i) + gloss(kloop,i) !*
@@ -871,7 +801,10 @@
 
         managerObject%rdelmax = 2.0d0
 
-        if (managerObject%jfail <= 6) then
+        ! MRD: magic numbers
+        ! enums
+        ! prefer strings to integers
+        if (managerObject%jFail <= 6) then
 
           managerObject%ifsuccess = 0
           managerObject%rdeltup   = 0.0d0
@@ -959,6 +892,7 @@
 
         managerObject%jfail     = 0
         managerObject%ifsuccess = 1
+
         managerObject%numSuccessTdt    = managerObject%numSuccessTdt + 1
         managerObject%told      = managerObject%xelaps
 
@@ -986,7 +920,9 @@
 !       ------------------------------
 !       Update chemistry mass balance.
 !       ------------------------------
-
+! belongs in gear
+! double check, but it looks like we can eliminate the first part
+!K: Why are we relying on testing equality between real numbers?  That's silly.
         if (managerObject%asn1 == 1.0d0) then
 
           do i = 1, managerObject%num1stOEqnsSolve
@@ -1146,6 +1082,7 @@
 
       else if (managerObject%rdelt == managerObject%rdeltdn) then
 
+
         managerObject%nqq = managerObject%nqq - 1
 
 !       ---------------------------------------------------------------
@@ -1153,6 +1090,7 @@
 !       the current order, increase the order and add a derivative term
 !       for the higher order.
 !       ---------------------------------------------------------------
+
 
       else if (managerObject%rdelt == managerObject%rdeltup) then
 
@@ -1191,6 +1129,9 @@
       return
 
       end subroutine Smvgear
+
+
+
 
 
 !-----------------------------------------------------------------------------
@@ -1241,11 +1182,9 @@
      &  (savedVars, num1stOEqnsSolve, ktloop, ncsp, cc2, vdiag, gloss)
 
       use GmiSolver_SavedVariables_mod, only : t_Smv2Saved
-
       implicit none
 
 #     include "smv2chem_par.h"
-!#     include "smv2chem2.h"
 
 
 !     ----------------------
@@ -1324,6 +1263,7 @@
           j3  = savedVars%kzerod(kc)
           j4  = savedVars%kzeroe(kc)
 
+          !K: Hot loop
           do k = 1, ktloop
             gloss(k,i) =  &
      &        gloss(k,i) -  &
@@ -1630,16 +1570,14 @@
 !   vdiag  : 1 / current diagonal term of the decomposed matrix
 !
 !-----------------------------------------------------------------------------
-
+! MRD: LU Decomp  - should go into sparseMatrix module
       subroutine Decomp  &
      &  (savedVars, num1stOEqnsSolve, ktloop, ncsp, cc2, vdiag)
 
       use GmiSolver_SavedVariables_mod, only : t_Smv2Saved
-
       implicit none
 
 #     include "smv2chem_par.h"
-!#     include "smv2chem2.h"
 
 
 !     ----------------------
@@ -1681,7 +1619,6 @@
 !
 !     Sum 1,2,3,4, OR 5 terms at a time to improve vectorization.
 !     -----------------------------------------------------------
-
 !     =======================
       JLOOP: do j = 1, num1stOEqnsSolve
 !     =======================
@@ -1690,6 +1627,8 @@
         IJTLOOP: do ijt =  savedVars%ijtlo(j,ncsp),  savedVars%ijthi(j,ncsp)
 !       ==============================================
 
+         !MRD: all things with 5 terms
+         ! should be part of sparse matrix type
           ij  =  savedVars%ijval(ijt)
           il5 =  savedVars%idl5 (ijt)
           ih5 =  savedVars%idh5 (ijt)
@@ -1703,7 +1642,11 @@
           ih1 =  savedVars%idh1 (ijt)
 
 !         -- Sum 5 terms at a time. --
+          ! MRD: does this unrolling really help...?
+          !K: Unclear, I'd rather remove it for clarity if nothing else
+          !K: But this involves unifying ikdeca,etc
 
+          ! should be part of sparse matrix type
           do ic = il5, ih5
 
             ik0 =  savedVars%ikdeca(ic)
@@ -1848,6 +1791,7 @@
 
       end subroutine Decomp
 
+
 !-----------------------------------------------------------------------------
 !
 ! ROUTINE
@@ -1869,16 +1813,17 @@
 !   rrate    : rate constants
 !
 !-----------------------------------------------------------------------------
+! MRD: Update is probably setPhotolysisCoeffs and computeRateCoeffs
+! MRD: Is going into the mechanism
+! MRD: Solver will not call it
 
       subroutine Update  &
      &  (savedVars, ktloop, nallr, ncs, ncsp, jphotrat, pratk1, rrate)
 
       use GmiSolver_SavedVariables_mod, only : t_Smv2Saved
-
       implicit none
 
 #     include "smv2chem_par.h"
-!#     include "smv2chem2.h"
 
 
 !     ----------------------
