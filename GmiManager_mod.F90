@@ -28,6 +28,10 @@ module GmiManager_mod
    public :: calcNewAbsoluteErrorTolerance
    public :: scaleDerivatives
    public :: updateChold
+   public :: predictConcAndDerivatives
+   public :: resetCnewDerivatives
+   public :: updateDerivatives
+
 
 ! MRD: add type bound procedures here
 ! can remove "_type"
@@ -96,6 +100,103 @@ module GmiManager_mod
     end type Manager_type
 
 contains
+
+      subroutine updateDerivatives(this, cnewDerivatives, ktloop, savedVars)
+         implicit none
+         type (Manager_type) :: this
+         real*8, intent(inout) :: cnewDerivatives(KBLOOP, MXGSAER*7)
+         integer, intent(in) :: ktloop
+         type(t_Smv2Saved), intent(inOut) :: savedVars
+
+         integer :: i, i1, j, jspc, kloop
+         real*8  :: asnqqj
+
+         i1 = 1
+         do j = 2, this%kstep
+           i1 = i1 + this%num1stOEqnsSolve
+           asnqqj = savedVars%aset(this%nqq,j)
+           do jspc = 1, this%num1stOEqnsSolve
+             i = jspc + i1 - 1
+             do kloop = 1, ktloop
+               cnewDerivatives(kloop,i) =  cnewDerivatives(kloop,i) + (asnqqj * this%dtlos(kloop,jspc))
+             end do
+           end do
+         end do
+      end subroutine updateDerivatives
+
+      subroutine resetCnewDerivatives(this, cnewDerivatives, ktloop)
+         implicit none
+
+         type (Manager_type) :: this
+         real*8, intent(inout) :: cnewDerivatives(KBLOOP, MXGSAER*7)
+         integer, intent(in) :: ktloop
+         integer :: i,i1,j,jb,kloop
+
+         i1 = this%nqqisc + 1
+         j = 0
+         do jb = 1, this%nqq
+            i1 = i1 - this%num1stOEqnsSolve
+            do i = i1, this%nqqisc
+               j = i + this%num1stOEqnsSolve
+               do kloop = 1, ktloop
+                  cnewDerivatives(kloop,i) = cnewDerivatives(kloop,i) - cnewDerivatives(kloop,j)
+             end do
+           end do
+         end do
+
+      end subroutine resetCnewDerivatives
+
+
+!-----------------------------------------------------------------------------
+!
+! ROUTINE
+!   predictConcAndDerivatives
+! DESCRIPTION
+!     Compute the predicted concentration and derivatives by multiplying
+!     previous values by the pascal triangle matrix.
+! Created by: Megan Rose Damon
+!-----------------------------------------------------------------------------
+      subroutine predictConcAndDerivatives(this, conc, explic, ktloop)
+
+         implicit none
+
+         type (Manager_type) :: this
+         real*8, intent(inout) :: conc(KBLOOP, MXGSAER*7)
+         real*8, intent(out) :: explic(KBLOOP, MXGSAER)
+         integer, intent(in) :: ktloop
+
+         integer :: i,i1,j,jb,jspc,kloop
+
+         !if (prDiag) Write(*,*) "Computing predicted conc and derivatives using pascal triangle matrix"
+         i1 = this%nqqisc + 1
+
+         do jb = 1, this%nqq - 1
+           i1 = i1 - this%num1stOEqnsSolve
+           do i = i1,  this%nqqisc
+             j = i + this%num1stOEqnsSolve
+             do kloop = 1, ktloop
+               conc(kloop,i)  = conc(kloop,i) + conc(kloop,j)
+             end do
+           end do
+         end do
+
+         do jspc = 1,  this%num1stOEqnsSolve
+           j = jspc + this%num1stOEqnsSolve
+           do kloop = 1, ktloop
+             conc  (kloop,jspc) = conc(kloop,jspc) + conc(kloop,j)
+             explic(kloop,jspc) = conc(kloop,j)
+           end do
+
+         end do
+
+         do i = this%num1stOEqnsSolve + 1, this%nqqisc
+           j = i + this%num1stOEqnsSolve
+           do kloop = 1, ktloop
+             conc(kloop,i) = conc(kloop,i) + conc(kloop,j)
+           end do
+         end do
+
+      end subroutine predictConcAndDerivatives
 
 !-----------------------------------------------------------------------------
 !
