@@ -12,6 +12,7 @@ module GmiMechanism_mod
    public :: setBoundaryConditions
    public :: velocity
    public :: calculateTermOfJacobian
+   public :: updatePhotoDissRates
    public :: Mechanism_type
 
 
@@ -26,13 +27,16 @@ module GmiMechanism_mod
        integer :: numRxns3Drep !numRxns3 + # of rxns with
                      ! two active reactants that are not
                        ! followed by a rxn with the same reactant
-       integer :: numActiveReactants ! CHECK WITH TOM
+       !integer :: numActiveReactants ! CHECK WITH TOM
+       !K: These arrays should be removed as they're in ChemTable now
        integer :: speciesNumberA    (NMTRATE)
        integer :: speciesNumberB    (NMTRATE)
        integer :: speciesNumberC    (NMTRATE)
        integer :: numRxns1, numRxns2, numRxns3 ! number of rxns
                      ! with 1, 2, and 3 reactants
-       integer :: numGridCellsInBlock
+       integer :: numGridCellsInBlock ! probably all the same (check padding)
+
+       ! MRD
        real*8  :: rateConstants (KBLOOP, NMTRATE) ! rate coefficient:
                               ! rates with 1 reactant:   s^-1
                               ! rates with 2 reactants:  l-h2o mole^-1 s^-1 or
@@ -51,7 +55,7 @@ contains
 ! DESCRIPTION
 !-----------------------------------------------------------------------------
       subroutine initializeMechanism (this, ktloop, irma, &
-                                      & irmb, irmc, nfdh2, nfdh3, nfdrep)
+                                      & irmb, irmc, nfdh2, nfdh3, nfdrep, rrate)
          !     ----------------------
          !     Argument declarations.
          !     ----------------------
@@ -62,6 +66,7 @@ contains
          integer, intent(in)  :: ktloop
          integer, intent(in)  :: nfdh2,  nfdh3
          integer, intent(in)  :: nfdrep
+         real*8,  intent(in) :: rrate (KBLOOP, NMTRATE)
 
          this%numGridCellsInBlock = ktloop
          this%speciesNumberA = irma ! MRD: these probably shouldn't be in object
@@ -70,7 +75,7 @@ contains
          this%numRxns2 = nfdh2
          this%numRxns3 = nfdh3
          this%numRxns3Drep = nfdrep
-
+         this%rateConstants = rrate
       end subroutine initializeMechanism
 
 !-----------------------------------------------------------------------------
@@ -118,7 +123,7 @@ contains
          logical, intent(in)  :: do_semiss_inchem
          real*8,  intent(inout) :: gloss (KBLOOP, MXGSAER)
          real*8,  intent(in)  :: yemis   (ilat*ilong, IGAS)
-         integer, intent(in) :: ibcb(IGAS)
+         integer :: ibcb(IGAS)
 
          integer :: kloop, jspc, jgas
 
@@ -187,20 +192,15 @@ contains
 
       use ChemTable_mod
       use GmiSolver_SavedVariables_mod, only : t_Smv2Saved
-
       implicit none
 
 #     include "smv2chem_par.h"
-!#     include "smv2chem2.h"
 
-!     ----------------------
-!     Argument declarations.
-!     ----------------------
       type (Mechanism_type) :: this
       integer, intent(in)  :: ischan ! derived from common block
       integer, intent(in)  :: ncsp   ! derived from common block
       real*8,  intent(in)  :: cx (KBLOOP, MXGSAER)
-      real*8,  intent(inout) :: gloss(KBLOOP, MXGSAER)
+      real*8,  intent(out) :: gloss(KBLOOP, MXGSAER)
       integer, intent(out) :: nfdh1
       type(t_Smv2Saved), intent(inOut) :: savedVars
 
@@ -328,8 +328,7 @@ contains
     ! rateConstants (reaction rates stay the same throughout the simulation)
     ! if chem_tdt changes or if the order changes, the Jacobian will change
 !-----------------------------------------------------------------------------
-
-      subroutine calculateTermOfJacobian (this, concentrationsNew, reactionRates, numRxnsOneActiveReactant)
+      subroutine calculateTermOfJacobian (this, concentrationsNew, reactionRates)
 
          implicit none
 
@@ -339,15 +338,12 @@ contains
          type (Mechanism_type) :: this
          real*8,  intent(in)  :: concentrationsNew  (KBLOOP, MXGSAER)
          real*8,  intent(out) :: reactionRates (KBLOOP, NMTRATE, 3)
-         integer, intent(in) :: numRxnsOneActiveReactant
 
 !     ----------------------
 !     Variable declarations.
 !     ----------------------
         integer :: nkn, block
         integer :: ja, jb, jc
-
-         this%numRxns1 = this%numRxns2 + numRxnsOneActiveReactant
 
 !    Partial derivatives for rates with three active loss terms.
          do nkn = 1, this%numRxns3
@@ -394,5 +390,87 @@ contains
 
       end subroutine calculateTermOfJacobian
 
+!-----------------------------------------------------------------------------
+!
+! ROUTINE
+!   Update
+!
+! DESCRIPTION
+!   This routine updates photodissociation rates.
+!
+!   Photorates are included in first and partial derivative equations.
+!
+! ARGUMENTS
+!   ktloop   : # of grid-cells in a grid-block
+!   numActiveReactants    : # of active rxns
+!   ncs      : identifies gas chemistry type (1..NCSGAS)
+!   ncsp     : ncs       => for daytime   gas chemistry
+!              ncs + ICS => for nighttime gas chemistry
+!   jphotrat : tbd
+!   ptratk1  : tbd
+!   rrate    : rate constants
+!
+!-----------------------------------------------------------------------------
+! MRD: Update is probably setPhotolysisCoeffs and computeRateCoeffs
+! MRD: Is going into the mechanism
+! MRD: Solver will not call it
+
+      subroutine updatePhotoDissRates  &
+     &  (this, ktloop, numActiveReactants, ncs, ncsp, &
+     &  jphotrat, pratk1, savedVars)
+
+      implicit none
+#     include "smv2chem_par.h"
+
+
+!     ----------------------
+!     Argument declarations.
+!     ----------------------
+      type (Mechanism_type) :: this
+      integer, intent(in)  :: ktloop
+      integer, intent(in)  :: numActiveReactants
+      integer, intent(in)  :: ncs
+      integer, intent(in)  :: ncsp
+      integer, intent(in)  :: jphotrat(ICS)
+      real*8,  intent(in)  :: pratk1  (KBLOOP, IPHOT)
+      type(t_Smv2Saved), intent(inOut) :: savedVars
+
+
+!     ----------------------
+!     Variable declarations.
+!     ----------------------
+
+      integer :: i, j
+      integer :: kloop
+      integer :: nh, nk, nkn
+
+
+!     ----------------
+!     Begin execution.
+!     ----------------
+
+!c    Write (6,*) 'Update called.'
+
+
+!     -------------------------------
+!     Load photolysis rate constants.
+!     -------------------------------
+
+      do j = 1, jphotrat(ncs)
+
+        nkn = savedVars%nknphotrt(j,ncs)
+
+        do kloop = 1, ktloop
+          this%rateConstants(kloop,nkn) = pratk1(kloop,j)
+        end do
+
+      end do
+
+      return
+
+      end subroutine updatePhotoDissRates
+
    end module GmiMechanism_mod
+
+
 

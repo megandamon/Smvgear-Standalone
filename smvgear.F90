@@ -106,7 +106,7 @@
 !   jlooplo  : low ntloop grid-cell - 1 in a grid-block
 !   ktloop   : # of grid-cells in a grid-block
 !   lunsmv   : logical unit number to write to when pr_smv2 is true
-!   nallr    : # of active rxns
+!   numActiveReactants    : # of active rxns
 !   ncs      : identifies gas chemistry type (1.NCSGAS)
 !   nfdh2    : nfdh3 + # of rxns with two   active reactants
 !   nfdh3    :         # of rxns with three active reactants
@@ -137,7 +137,7 @@
 !   errmx2   : measure of stiffness/nearness to convergence of each block
 !              sum ydot/y for all species (MRD per Kareem Sorathia)
 !   cc2      : array holding values of decomposed matrix
-!   cnew     : stores conc (y (estimated)) (molec/cm^3)
+!   cnew     : stores cnewDerivatives (y (estimated)) (molec/cm^3)
 !   gloss    : value of first derivatives on output from velocity; right-side
 !              of eqn on input to Backsub; error term (solution from Backsub)
 !              on output from Backsub
@@ -150,7 +150,7 @@
       subroutine Smvgear  &
      &  (savedVars, do_qqjk_inchem, do_semiss_inchem, pr_qqjk, pr_smv2, ifsun,  &
      &   ilat, ilong, ivert, ireord, itloop, jlooplo, ktloop, lunsmv,  &
-     &   nallr, ncs, nfdh2, nfdh3, nfdl1, nfdl2, nfdrep, nfdrep1,  &
+     &   numActiveReactants, ncs, nfdh2, nfdh3, nfdl1, nfdl2, nfdrep, nfdrep1,  &
      &   fracdec, hmaxnit, pr_nc_period, tdt, do_cell_chem, irma, irmb,  &
      &   irmc, jreorder, jphotrat, ntspec, inewold, denair, corig,  &
      &   pratk1, yemis, smvdm, nfdh1, errmx2, cc2, cnew, gloss, vdiag,  &
@@ -190,7 +190,7 @@
       integer, intent(in)  :: jlooplo
       integer, intent(in)  :: ktloop
       integer, intent(in)  :: lunsmv
-      integer, intent(in)  :: nallr
+      integer, intent(in)  :: numActiveReactants
       integer, intent(in)  :: ncs
       integer, intent(in)  :: nfdh2,  nfdh3
       integer, intent(in)  :: nfdl1,  nfdl2
@@ -214,6 +214,8 @@
       real*8,  intent(in)  :: yemis   (ilat*ilong, IGAS)
 
       real*8,  intent(inout) :: errmx2(itloop)
+      !K: Why is cc2 passed in/out?  Seems silly
+      !K: Same question for everything but cnew
       real*8,  intent(inout) :: cc2   (KBLOOP, 0:MXARRAY)
       real*8,  intent(inout) :: cnew  (KBLOOP, MXGSAER)
       real*8,  intent(inout) :: gloss (KBLOOP, MXGSAER)
@@ -306,7 +308,7 @@
       integer :: nondiag     ! # of final matrix positions, excluding diagonal
 
       call initializeMechanism (mechanismObject, ktloop, irma, &
-                              &  irmb, irmc, nfdh2, nfdh3, nfdrep)
+                              &  irmb, irmc, nfdh2, nfdh3, nfdrep, rrate)
 
       nact = nnact
 
@@ -325,15 +327,7 @@
 !     ========
 
       call startTimeInterval (managerObject, ncs, savedVars)
-
-!     -------------------------------
-!     Initialize concentration array.
-!     -------------------------------
-      do jnew = 1, managerObject%num1stOEqnsSolve
-        do kloop = 1, ktloop
-          cnew(kloop, jnew) = corig(kloop, jnew) ! why save this?
-        end do
-      end do
+      call initConcentrationArray(ktloop, cnew, corig, managerObject)
 
 !     --------------------------------------------------------------------
 !     Re-enter here if total failure or if restarting with new cell block.
@@ -345,24 +339,13 @@
 
       call resetBeforeUpdate (managerObject)
 
-!     ---------------------
-!     Initialize photrates.
-!     ---------------------
-
-!DIR$ INLINE
-!     ===========
-      call Update  &
-!     ===========
-     &  (savedVars, ktloop, nallr, ncs, ncsp, jphotrat, pratk1, rrate)
-
-!DIR$ NOINLINE
-
-      ! update can be inside the mechanism, and rrate can possibly
-      ! turn to protected, or private
-      mechanismObject%rateConstants = rrate
-      mechanismObject%numActiveReactants = nallr
+!!DIR$ INLINE
+      call updatePhotoDissRates  (mechanismObject, ktloop, numActiveReactants, &
+         &  ncs, ncsp, jphotrat, pratk1, savedVars)
+!!DIR$ NOINLINE
 
       call velocity (mechanismObject, managerObject%num1stOEqnsSolve, ncsp, cnew, gloss, nfdh1, savedVars)
+
       managerObject%numCallsVelocity = managerObject%numCallsVelocity + 1
 
       call setBoundaryConditions (mechanismObject, itloop, &
@@ -376,9 +359,9 @@
 !     Determine initial absolute error tolerance.
 !     -------------------------------------------
 
-      do kloop = 1, ktloop
-        dely(kloop) = 0.0d0
-      end do
+      !do kloop = 1, ktloop
+      !  dely(kloop) = 0.0d0
+      !end do
 
 ! get rid of magic number 1
 ! refactor this into routine(s) smvgear until we deterine their resting place.
@@ -392,10 +375,11 @@
 
       !MRD: see manager routine "calculateErrorTolerances"
         do kloop = 1, ktloop
+          dely(kloop) = 0.0d0
           do jspc = 1, managerObject%num1stOEqnsSolve
             cnewylow    = cnew (kloop,jspc) + (yabst(kloop) * managerObject%reltol1)
             errymax     = gloss(kloop,jspc) / cnewylow
-            dely(kloop) = dely (kloop) + (errymax * errymax)
+            dely(kloop) = dely (kloop) + (errymax * errymax) ! this is an error (not a tolerance)
           end do
         end do
 
@@ -514,7 +498,6 @@
 !     ========
 
       l3 = 0
-
       do jspc = 1, managerObject%num1stOEqnsSolve
         do kloop = 1, ktloop
           cnew (kloop,jspc) = cnewDerivatives(kloop,jspc)
@@ -544,7 +527,7 @@
          ! MRD: End block of code that was in Pderiv
 
          !K: Consider un-inlining this.
-!DIR$   INLINE
+!!DIR$   INLINE
 !       ===========
         call Decomp  &
 !       ===========
@@ -568,7 +551,6 @@
 !     ========
 
 !   print*, "in 300, evaluating first derivative"
-
      call velocity (mechanismObject, managerObject%num1stOEqnsSolve, ncsp, cnew, gloss, nfdh1, savedVars)
 
      managerObject%numCallsVelocity = managerObject%numCallsVelocity + 1
@@ -601,7 +583,7 @@
 !     Solve the linear system of equations with the corrector error;
 !     Backsub solves backsubstitution over matrix of partial derivs.
 !     --------------------------------------------------------------
-! MRD: goes in gear b/c manager doesn't know about backsubstitution
+! MRD: stays in gear b/c manager doesn't know about backsubstitution
 ! As part of gear's timestep it calls backsub
 !     ============
       call Backsub  &
@@ -620,8 +602,8 @@
       end do
 
       ! MRD: removed an optimization for the case of asn1 = 1  (saves a multiplication per loop)
-      do i = 1, managerObject%num1stOEqnsSolve
-         do kloop = 1, ktloop !*
+      do i = 1, managerObject%num1stOEqnsSolve !*
+         do kloop = 1, ktloop
             managerObject%dtlos(kloop,i) = managerObject%dtlos(kloop,i) + gloss(kloop,i) !*
             cnew(kloop,i)  = cnewDerivatives(kloop,i)  + (managerObject%asn1 * managerObject%dtlos(kloop,i))
             errymax        = gloss(kloop,i) * managerObject%chold(kloop,i) !*
@@ -823,13 +805,6 @@
 
         call updateDerivatives(managerObject, cnewDerivatives, ktloop, savedVars)
 
-!       ------------------------------
-!       Update chemistry mass balance.
-!       ------------------------------
-
-! belongs in gear
-! double check, but it looks like we can eliminate the first part
-!K: Why are we relying on testing equality between real numbers?  That's silly.
          ! TODO: Megan FIX this routine. Does not give 0 diff
         !call updateChemistryMassBalance (ktloop, cnewDerivatives, explic, smvdm, &
          !& prDiag, managerObject)
@@ -1036,6 +1011,29 @@
       return
 
       end subroutine Smvgear
+
+      subroutine initConcentrationArray(ktloop, concentrationsNew, concentrationsOld, managerObject)
+
+         use GmiManager_mod
+         implicit none
+
+#     include "smv2chem_par.h"
+
+         integer, intent(in) :: ktloop
+         real*8, intent(out) :: concentrationsNew(KBLOOP, MXGSAER)
+         real*8,  intent(in)  :: concentrationsOld(KBLOOP, MXGSAER)
+         type (Manager_type) :: managerObject
+
+         integer :: jnew, kloop
+
+         do jnew = 1, managerObject%num1stOEqnsSolve
+           do kloop = 1, ktloop
+             concentrationsNew(kloop, jnew) = concentrationsOld(kloop, jnew) ! why save this?
+           end do
+         end do
+
+      end subroutine
+
 
       !   smvdm    : amount added to each spc at each grid-cell (# cm^-3 for gas chemistry (?))
       subroutine updateChemistryMassBalance (ktloop, cnewDerivatives, explic, smvdm, &
@@ -1739,87 +1737,7 @@
       end subroutine Decomp
 
 
-!-----------------------------------------------------------------------------
-!
-! ROUTINE
-!   Update
-!
-! DESCRIPTION
-!   This routine updates photodissociation rates.
-!
-!   Photorates are included in first and partial derivative equations.
-!
-! ARGUMENTS
-!   ktloop   : # of grid-cells in a grid-block
-!   nallr    : # of active rxns
-!   ncs      : identifies gas chemistry type (1..NCSGAS)
-!   ncsp     : ncs       => for daytime   gas chemistry
-!              ncs + ICS => for nighttime gas chemistry
-!   jphotrat : tbd
-!   ptratk1  : tbd
-!   rrate    : rate constants
-!
-!-----------------------------------------------------------------------------
-! MRD: Update is probably setPhotolysisCoeffs and computeRateCoeffs
-! MRD: Is going into the mechanism
-! MRD: Solver will not call it
-
-      subroutine Update  &
-     &  (savedVars, ktloop, nallr, ncs, ncsp, jphotrat, pratk1, rrate)
-
-      use GmiSolver_SavedVariables_mod, only : t_Smv2Saved
-      implicit none
-
-#     include "smv2chem_par.h"
 
 
-!     ----------------------
-!     Argument declarations.
-!     ----------------------
 
-      integer, intent(in)  :: ktloop
-      integer, intent(in)  :: nallr
-      integer, intent(in)  :: ncs
-      integer, intent(in)  :: ncsp
-      integer, intent(in)  :: jphotrat(ICS)
-      real*8,  intent(in)  :: pratk1  (KBLOOP, IPHOT)
-
-      real*8,  intent(inout) :: rrate(KBLOOP, NMTRATE)
-
-      type(t_Smv2Saved), intent(inOut) :: savedVars
-
-
-!     ----------------------
-!     Variable declarations.
-!     ----------------------
-
-      integer :: i, j
-      integer :: kloop
-      integer :: nh, nk, nkn
-
-
-!     ----------------
-!     Begin execution.
-!     ----------------
-
-!c    Write (6,*) 'Update called.'
-
-
-!     -------------------------------
-!     Load photolysis rate constants.
-!     -------------------------------
-
-      do j = 1, jphotrat(ncs)
-
-        nkn = savedVars%nknphotrt(j,ncs)
-
-        do kloop = 1, ktloop
-          rrate(kloop,nkn) = pratk1(kloop,j)
-        end do
-
-      end do
-
-      return
-
-      end
 
