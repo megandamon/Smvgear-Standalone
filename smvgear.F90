@@ -231,18 +231,10 @@
 !     Variable declarations.
 !     ----------------------
 
-!     ------------------------------------------------------------------------
-!
-!     jeval     :  1 => call Pderiv the next time through the corrector steps;
-!                  0 => last step successful and do not need to call Pderiv;
-!                 -1 => Pderiv just called, and do not need to call again
-!                  until jeval switched to 1
-!     ------------------------------------------------------------------------
-
       integer :: i, j, k
       integer :: i1, i2
       integer :: jb
-      integer :: jeval
+      integer :: evaluatePredictor
       integer :: jg1
       integer :: jgas
       integer :: jnew
@@ -263,15 +255,15 @@
       integer :: concAboveAbtolCount(KBLOOP, 5)
 
 !     ------------------------------------------------------------------------
-!     delt      : current time step (s)
-!     MAX_REL_CHANGE     : max relative change in delt*aset(1) before Pderiv is called
+!     currentTimeStep      : current time step (s)
+!     MAX_REL_CHANGE     : max relative change in currentTimeStep*aset(1) before Pderiv is called
 !     order     : floating point value of num1stOEqnsSolve, the order of # of ODEs
 !     ------------------------------------------------------------------------
 
       real*8  :: cnewylow
       real*8  :: cnw
       real*8  :: consmult
-      real*8  :: delt
+      real*8  :: currentTimeStep
       real*8  :: dtasn1
       real*8  :: der1max, der3max
       real*8  :: errymax
@@ -292,9 +284,9 @@
 !     cest   : stores value of dtlos when idoub = 1
 !     explic : tbd
 !     cnewDerivatives   : an array of length num1stOEqnsSolve*(MAXORD+1) that carries the
-!              derivatives of cnew, scaled by delt^j/factorial(j), where j is
+!              derivatives of cnew, scaled by currentTimeStep^j/factorial(j), where j is
 !              the jth derivative; j varies from 1 to nqq; e.g., cnewDerivatives(jspc,2)
-!              stores delt*y' (estimated)
+!              stores currentTimeStep*y' (estimated)
 !     -------------------------------------------------------------------------
 
       real*8  :: dely  (KBLOOP)
@@ -396,7 +388,7 @@
 
 
       call calcInitialTimeStepSize (managerObject, ktloop, dely, &
-         delt, ncs, savedVars)
+         currentTimeStep, ncs, savedVars)
 
 !     -----------------------
 !     Set initial order to 1.
@@ -404,7 +396,7 @@
 
       managerObject%nqqold = 0
       managerObject%nqq    = 1
-      jeval  = 1
+      evaluatePredictor  = 1
       managerObject%rdelt  = 1.0d0
 
 
@@ -417,7 +409,7 @@
 
         do kloop = 1, ktloop
           cnewDerivatives(kloop,jspc) = cnew(kloop,jspc)
-          cnewDerivatives(kloop,j)    = delt * gloss(kloop,jspc)
+          cnewDerivatives(kloop,j)    = currentTimeStep * gloss(kloop,jspc)
         end do
 
       end do
@@ -428,12 +420,12 @@
 !     ========
 
       if (managerObject%nqq /= managerObject%nqqold) call updateCoefficients (managerObject, savedVars)
-      call calculateTimeStep (managerObject, delt, jeval, MAX_REL_CHANGE)
+      call calculateTimeStep (managerObject, currentTimeStep, evaluatePredictor, MAX_REL_CHANGE)
 
 
-      if (delt < HMIN) then
+      if (currentTimeStep < HMIN) then
         call tightenErrorTolerance (managerObject, pr_smv2, &
-               lunsmv, ncs, delt, savedVars)
+               lunsmv, ncs, currentTimeStep, savedVars)
         !     ========================================
         go to 100 ! routine start startTimeInterval?
         !     ========================================
@@ -441,7 +433,7 @@
 
 
 !     -------------------------------------------------------------------
-!     If the delt is different than during the last step (if rdelt /= 1),
+!     If the currentTimeStep is different than during the last step (if rdelt /= 1),
 !     then scale the derivatives.
 !     -------------------------------------------------------------------
 
@@ -487,9 +479,9 @@
 !     Take up to 3 corrector iterations.  Test convergence by requiring
 !     that changes be less than the rms norm weighted by chold.
 !     Accumulate the correction in the array dtlos.  It equals the
-!     jth derivative of concentration multiplied by delt^kstep /
+!     jth derivative of concentration multiplied by currentTimeStep^kstep /
 !     (factorial(kstep-1) * aset(kstep)); thus, it is proportional to the
-!     actual errors to the lowest power of delt present (delt^kstep).
+!     actual errors to the lowest power of currentTimeStep present (currentTimeStep^kstep).
 !     -------------------------------------------------------------------
 
 
@@ -507,15 +499,15 @@
 
 
 !     ------------------------------------------------------------------
-!     If jeval = 1, re-evaluate predictor matrix P = I - H * aset(1) * J
+!     If evaluatePredictor = 1, re-evaluate predictor matrix P = I - H * aset(1) * J
 !     before starting the corrector iteration.  After calling Pderiv,
-!     set jeval = -1 to prevent recalling Pderiv unless necessary later.
+!     set evaluatePredictor = -1 to prevent recalling Pderiv unless necessary later.
 !     Call Decomp to decompose the matrix.
 !     ------------------------------------------------------------------
 
-      if (jeval == 1) then
+      if (evaluatePredictor == 1) then
 
-         r1delt = -managerObject%asn1 * delt
+         r1delt = -managerObject%asn1 * currentTimeStep
          nondiag  = savedVars%iarray(ncsp) - managerObject%num1stOEqnsSolve ! iarray is in common block
          mechanismObject%numRxns1 = nfdh2 + savedVars%ioner(ncsp)
 
@@ -534,7 +526,7 @@
      &    (savedVars, managerObject%num1stOEqnsSolve, ktloop, ncsp, cc2, vdiag)
 !DIR$   NOINLINE
 
-        jeval  = -1
+        evaluatePredictor  = -1
         managerObject%hratio = 1.0d0
         managerObject%nslp   = managerObject%numSuccessTdt + MBETWEEN
         managerObject%drate  = 0.7d0
@@ -572,7 +564,7 @@
         j = jspc + managerObject%num1stOEqnsSolve
 
         do kloop = 1, ktloop
-          gloss(kloop,jspc) = (delt * gloss(kloop,jspc)) -  &
+          gloss(kloop,jspc) = (currentTimeStep * gloss(kloop,jspc)) -  &
      &                        (cnewDerivatives(kloop,j) + managerObject%dtlos(kloop,jspc))
         end do
 
@@ -642,10 +634,10 @@
 !         step.
 !         ----------------------------------------------------------------
 
-        else if (jeval == 0) then
+        else if (evaluatePredictor == 0) then
 
           managerObject%numFailOldJacobian = managerObject%numFailOldJacobian + 1
-          jeval = 1
+          evaluatePredictor = 1
 
 !         =========
           go to 250
@@ -655,7 +647,7 @@
 
         managerObject%numFailAfterPredict     = managerObject%numFailAfterPredict + 1
         managerObject%rdelmax   = 2.0d0
-        jeval     = 1
+        evaluatePredictor     = 1
         managerObject%ifsuccess = 0
         managerObject%xelaps    = managerObject%told
         managerObject%rdelt     = fracdec
@@ -672,12 +664,12 @@
 !     -------------------------------------------------------------------
 !     The corrector iteration converged.
 !
-!     Set jeval = 0, so that it does not need to be called the next step.
+!     Set evaluatePredictor = 0, so that it does not need to be called the next step.
 !     If all else goes well.  Next, test the accumulated error from the
 !     convergence process above.
 !     -------------------------------------------------------------------
 
-      jeval = 0
+      evaluatePredictor = 0
       if (l3 > 1) then
          call testAccumulatedError (managerObject, ktloop, dely)
       end if
@@ -732,7 +724,7 @@
 
         else
 
-          delt    = delt * 0.1d0
+          currentTimeStep    = currentTimeStep * 0.1d0
           managerObject%rdelt   = 1.0d0
           managerObject%jfail   = 0
           managerObject%jrestar = managerObject%jrestar + 1
@@ -745,10 +737,10 @@
           end do
 
           if (pr_smv2) then
-            Write (lunsmv,970) delt, managerObject%xelaps
+            Write (lunsmv,970) currentTimeStep, managerObject%xelaps
           end if
 
- 970      format ('delt dec to ', e13.5, ' at time ', e13.5,  &
+ 970      format ('currentTimeStep dec to ', e13.5, ' at time ', e13.5,  &
      &            ' because of excessive errors.')
 
           if (managerObject%jrestar == 100) then
@@ -1510,7 +1502,7 @@
 !            ncs + ICS => for nighttime gas chemistry
 !   cc2    : array of iarray units holding values of each matrix
 !            position actually used; originally,
-!            cc2 = P = I - delt * aset(nqq,1) * partial_derivatives;
+!            cc2 = P = I - currentTimeStep * aset(nqq,1) * partial_derivatives;
 !            however, cc2 is decomposed here
 !   vdiag  : 1 / current diagonal term of the decomposed matrix
 !
