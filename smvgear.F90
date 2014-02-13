@@ -380,62 +380,17 @@
         dely(kloop) = 0.0d0
       end do
 
-
+! get rid of magic number 1
+! refactor this into routine(s) smvgear until we deterine their resting place.
+! probably goes in the manager, possibly in gear
 !     ==========================
       IREORDIF: if (ireord /= 1) then
 !     ==========================
 
-        do k = 1, 5
-          do kloop = 1, ktloop
-            concAboveAbtolCount(kloop,k) = 0
-          end do
-        end do
+      call calcNewAbsoluteErrorTolerance (managerObject, cnew, concAboveAbtolCount, &
+         & ktloop, yabst, ncs, savedVars)
 
-        do jspc = 1, managerObject%num1stOEqnsSolve
-          do kloop = 1, ktloop
-
-            cnw = cnew(kloop,jspc)
-
-            if (cnw > savedVars%abtol(1,ncs)) then
-              concAboveAbtolCount(kloop,1) = concAboveAbtolCount(kloop,1) + 1
-            else if (cnw > savedVars%abtol(2,ncs)) then
-              concAboveAbtolCount(kloop,2) = concAboveAbtolCount(kloop,2) + 1
-            else if (cnw > savedVars%abtol(3,ncs)) then
-              concAboveAbtolCount(kloop,3) = concAboveAbtolCount(kloop,3) + 1
-            else if (cnw > savedVars%abtol(4,ncs)) then
-              concAboveAbtolCount(kloop,4) = concAboveAbtolCount(kloop,4) + 1
-            else if (cnw > savedVars%abtol(5,ncs)) then
-              concAboveAbtolCount(kloop,5) = concAboveAbtolCount(kloop,5) + 1
-            end if
-
-          end do
-        end do
-
-        do kloop = 1, ktloop
-
-          k1 = concAboveAbtolCount(kloop,1)
-          k2 = concAboveAbtolCount(kloop,2) + k1
-          k3 = concAboveAbtolCount(kloop,3) + k2
-          k4 = concAboveAbtolCount(kloop,4) + k3
-          k5 = concAboveAbtolCount(kloop,5) + k4
-
-          if (k1 > managerObject%iabove) then
-            yabst(kloop) = savedVars%abtol(1,ncs)
-          else if (k2 > managerObject%iabove) then
-            yabst(kloop) = savedVars%abtol(2,ncs)
-          else if (k3 > managerObject%iabove) then
-            yabst(kloop) = savedVars%abtol(3,ncs)
-          else if (k4 > managerObject%iabove) then
-            yabst(kloop) = savedVars%abtol(4,ncs)
-          else if (k5 > managerObject%iabove) then
-            yabst(kloop) = savedVars%abtol(5,ncs)
-          else
-            yabst(kloop) = savedVars%abtol(6,ncs)
-          end if
-
-        end do
-
-!c
+      !MRD: see manager routine "calculateErrorTolerances"
         do kloop = 1, ktloop
           do jspc = 1, managerObject%num1stOEqnsSolve
             cnewylow    = cnew (kloop,jspc) + (yabst(kloop) * managerObject%reltol1)
