@@ -27,6 +27,6 @@ smvgear.o:GmiPrintError_mod.o GmiManager_mod.o GmiMechanism_mod.o
 GmiMechanism_mod.o:GmiSolver_SavedVariables_mod.o
 
 distclean:clean
-	rm -f *exit*proc*
+	rm -f *exit*proc* cxfin
 clean:
 	rm -f *.o *.mod *.exe

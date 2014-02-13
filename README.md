@@ -32,3 +32,13 @@ Cleaning the installation
 make clean
 or
 make distclean (to remove exit files)
+
+
+
+Developer notes - 
+
+Feb 12 2014
+An optimization made changed the species concentrations by: 
+   Max  =   8.819316628546657623811789175258837E-0010
+   Mean =   3.695324632725830753419521841913095E-0013
+   Std  =   5.240100518479359891714028047851416E-0012

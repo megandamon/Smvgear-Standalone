@@ -1918,7 +1918,6 @@
 !   jphotrat : tbd
 !   ptratk1  : tbd
 !   rrate    : rate constants
-!   trate    : rxn rate (moles l^-1-h2o s^-1 or # cm^-3 s^-1 (?))
 !
 !-----------------------------------------------------------------------------
 

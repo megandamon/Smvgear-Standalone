@@ -10,13 +10,11 @@ Program gearproc
 	Real, parameter :: Eps = 1.0e-16
 	Real (r_kind), dimension(Cellnum,Spcnum) :: Cxf,Cxg,Logdiff !Test values Cxf, "good" values Cxg
 	Real (r_kind) :: Mean, Std2
-print*, "after declars"
 	Cxf = 0
 	Cxg = 0
 
 	open (unit = 2, file = "cxfin")
 	open (unit = 3, file = "cxgood")
-	print*, "opened files"
 	!Remove header trash, cx(itloop,IGAS) = x by y
 	read(2,*)
 	read(3,*)
