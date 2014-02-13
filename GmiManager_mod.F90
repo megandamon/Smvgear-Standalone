@@ -25,13 +25,17 @@ module GmiManager_mod
    public :: testAccumulatedError
    public :: estimateTimeStepRatio
    public :: resetBeforeUpdate
-
+   public :: calcNewAbsoluteErrorTolerance
+   public :: scaleDerivatives
+   public :: updateChold
 
 ! MRD: add type bound procedures here
 ! can remove "_type"
 ! need a constructor
    type Manager_type
 
+       ! private
+       integer :: numErrTolDecreases
        integer :: numFailOldJacobian ! of times corrector failed to converge while the Jacobian was old
        integer :: jFail ! of times correcter failed to converge after old "Pderiv" was called
        integer :: numFailErrorTest
@@ -39,7 +43,6 @@ module GmiManager_mod
        integer :: numCallsPredict ! total # of times predictor is called
        integer :: numSuccessTdt ! numSuccessTdt    : total # of successful time steps taken
        integer :: numCallsVelocity ! total # of times velocity is called
-       integer :: numErrTolDecreases
        integer :: num1stOEqnsSolve !# of first-order eqns to solve, = # of spc = order of
                ! original matrix; num1stOEqnsSolve has a different value for day and
                ! night and for gas- and aqueous-phase chemistry;
@@ -48,7 +51,7 @@ module GmiManager_mod
        real*8  :: order, order_inv
        real*8  :: chemTimeInterval !total chem time interval; same as chemintv (s)
        real*8  :: maxTimeStep ! max time step at a given time (s)
-       real*8  :: failureFraction != 1 originially, but is decreased if excessive failures
+       real*8  :: failureFraction ! = 1 originially, but is decreased if excessive failures
                ! occur in order to reduce absolute error tolerance
        real*8  :: timeremain ! remaining time in an chem interval (s)
        real*8  :: iabove
@@ -94,6 +97,132 @@ module GmiManager_mod
 
 contains
 
+!-----------------------------------------------------------------------------
+!
+! ROUTINE
+!   updateChold
+! DESCRIPTION
+! Created by: Megan Rose Damon
+!-----------------------------------------------------------------------------
+   subroutine updateChold (this, ktloop, cnew, yabst)
+      type (Manager_type) :: this
+      integer, intent(in) :: ktloop
+      real*8,  intent(in) :: cnew  (KBLOOP, MXGSAER)
+      real*8, intent(in)  :: yabst (KBLOOP)
+
+      integer :: kloop, jspc
+
+      do kloop = 1, ktloop
+       do jspc = 1, this%num1stOEqnsSolve
+
+         this%chold(kloop,jspc) =  &
+  &        this%reltol3 /  &
+  &        (Max (cnew(kloop,jspc), 0.0d0) +  &
+  &         (yabst(kloop) * this%reltol2))
+
+       end do
+     end do
+
+   end subroutine updateChold
+
+!-----------------------------------------------------------------------------
+!
+! ROUTINE
+!   scaleDerivatives
+! DESCRIPTION
+! Created by: Megan Rose Damon
+! cnewDerivatives   : an array of length num1stOEqnsSolve*(MAXORD+1) that carries the
+!   derivatives of cnew, scaled by delt^j/factorial(j), where j is
+!   the jth derivative; j varies from 1 to nqq; e.g., conc(jspc,2)
+!   stores delt*y' (estimated)
+!-----------------------------------------------------------------------------
+   subroutine scaleDerivatives (this, ktloop, cnewDerivatives)
+      type (Manager_type) :: this
+      integer, intent(in)  :: ktloop
+      real*8, intent(inout)  :: cnewDerivatives  (KBLOOP, MXGSAER*7)
+
+      real*8  :: rdelta
+      integer :: i1, j, i, kloop
+
+      rdelta = 1.0d0
+      i1     = 1
+
+      do j = 2, this%kstep
+         rdelta = rdelta * this%rdelt
+         i1 = i1 + this%num1stOEqnsSolve
+          do i = i1, i1 + (this%num1stOEqnsSolve-1)
+            do kloop = 1, ktloop
+              cnewDerivatives(kloop,i) = cnewDerivatives(kloop,i) * rdelta
+            end do
+          end do
+      end do
+
+   end subroutine scaleDerivatives
+
+!-----------------------------------------------------------------------------
+!
+! ROUTINE
+!   calcNewAbsoluteErrorTolerance
+! DESCRIPTION
+! Created by: Megan Rose Damon
+!-----------------------------------------------------------------------------
+   subroutine  calcNewAbsoluteErrorTolerance (this, cnew, concAboveAbtolCount, &
+      &  ktloop, yabst, ncs, savedVars)
+      type (Manager_type) :: this
+      real*8,  intent(in) :: cnew  (KBLOOP, MXGSAER)
+      integer, intent(inout) :: concAboveAbtolCount(KBLOOP, 5)
+      integer, intent(in)  :: ktloop
+      real*8, intent(out)  :: yabst (KBLOOP)
+      integer, intent(in)  :: ncs
+      type(t_Smv2Saved), intent(inOut) :: savedVars
+
+      integer :: jspc, kloop
+      integer :: k1, k2, k3, k4, k5, k
+      real*8  :: cnw
+
+      do k = 1, 5
+          do kloop = 1, ktloop
+            concAboveAbtolCount(kloop,k) = 0
+          end do
+      end do
+
+      do jspc = 1, this%num1stOEqnsSolve
+          do kloop = 1, ktloop
+            cnw = cnew(kloop,jspc)
+            do k = 1, 5
+               if (cnw > savedVars%abtol(k,ncs)) then
+                 concAboveAbtolCount(kloop,k) = concAboveAbtolCount(kloop,k) + 1
+                 exit
+               end if
+            end do
+          end do
+        end do
+
+        do kloop = 1, ktloop
+
+          k1 = concAboveAbtolCount(kloop,1)
+          k2 = concAboveAbtolCount(kloop,2) + k1
+          k3 = concAboveAbtolCount(kloop,3) + k2
+          k4 = concAboveAbtolCount(kloop,4) + k3
+          k5 = concAboveAbtolCount(kloop,5) + k4
+
+          if (k1 > this%iabove) then
+            yabst(kloop) = savedVars%abtol(1,ncs) ! MRD: these yabst should be passed in
+          else if (k2 > this%iabove) then    ! does the driver pass them in?
+            yabst(kloop) = savedVars%abtol(2,ncs) ! or does the mechanism specify them
+          else if (k3 > this%iabove) then    ! tabled for now
+            yabst(kloop) = savedVars%abtol(3,ncs)
+          else if (k4 > this%iabove) then
+            yabst(kloop) = savedVars%abtol(4,ncs)
+          else if (k5 > this%iabove) then
+            yabst(kloop) = savedVars%abtol(5,ncs)
+          else
+            yabst(kloop) = savedVars%abtol(6,ncs)
+          end if
+
+        end do
+
+        end subroutine calcNewAbsoluteErrorTolerance
 !-----------------------------------------------------------------------------
 !
 ! ROUTINE
@@ -176,7 +305,6 @@ contains
 
    end subroutine estimateTimeStepRatio
 
-
 !-----------------------------------------------------------------------------
 !
 ! ROUTINE
@@ -196,8 +324,6 @@ contains
 
       integer:: jspc, kloop
       real*8  :: errymax
-
-      !Write (6,*) 'testAccumulatedError called.'
 
       do kloop = 1, ktloop
          dely(kloop) = 0.0d0
@@ -245,11 +371,10 @@ contains
       real*8  :: rmsErrorPrevious, rmsrat
       integer :: kloop
 
-      !Write (6,*) 'calculateNewRmsError called.'
-
       rmsErrorPrevious = this%rmsError
       this%der2max = 0.0d0
 
+      ! make this a one line using maxval
       do kloop = 1, ktloop
         if (dely(kloop) > this%der2max) then
           this%der2max = dely(kloop)
@@ -330,6 +455,9 @@ contains
 !     should be updated. (edit by MRD on 2/27/2013)
 ! Created by: Megan Rose Damon
 !     delt      : current time step (s)
+! Unit testing ideas: can't take a step bigger than what we have remaining
+! Make this a method on a class?
+! two routines: update time step and determine Jacobian (something like this)
 !-----------------------------------------------------------------------------
    subroutine calculateTimeStep (this, delt, jeval, maxRelChange)
 
@@ -342,14 +470,14 @@ contains
       real*8, intent(in) :: maxRelChange
 
       real*8  :: hmtim
-      !Write (6,*) 'calculateTimeStep called.'
 
       hmtim  = Min (this%maxTimeStep, this%timeremain)
       this%rdelt  = Min (this%rdelt, this%rdelmax, hmtim/delt)
       delt   = delt   * this%rdelt
+
       this%hratio = this%hratio * this%rdelt
       this%xelaps = this%xelaps + delt
-
+      ! rename nslp
       if ((Abs (this%hratio-1.0d0) > maxRelChange) .or. (this%numSuccessTdt >= this%nslp)) then
         jeval = 1 ! MRD: could be a boolean; this is signifying to whether or not to update Jacobian
       end if
@@ -380,8 +508,6 @@ contains
 
       real*8 :: eup ! pertst^2*order for one order higher than current order
       real*8  :: edwn ! pertst^2*order for one order lower  than current order
-
-      !Write (6,*) 'updateCoefficients called.'
 
       this%nqqold = this%nqq
       this%kstep  = this%nqq + 1
@@ -429,8 +555,6 @@ contains
       integer :: kloop
       real*8  :: rmstop
       real*8  :: delt1
-
-      !Write (6,*) 'calcInitialTimeStepSize called.'
 
       rmstop = 0.0d0
       do kloop = 1, ktloop
@@ -480,8 +604,6 @@ contains
       integer :: jspc
       real*8  :: errymax
 
-      !Write (6,*) 'calculateErrorTolerances called.'
-
       ! abtoler1 = failureFraction * abtol(6,ncs) / Min (errmax, 1.0d-03)
       do kloop = 1, ktloop
          do jspc = 1, this%num1stOEqnsSolve
@@ -514,8 +636,6 @@ contains
       type (Manager_type) :: this
       integer, intent(in)  :: ncs ! ncs is argument to Smvgear
       type(t_Smv2Saved), intent(inOut) :: savedVars
-
-      !Write (6,*) 'startTimeInterval called.'
 
       this%idoub     = 2
       this%nslp      = MBETWEEN
@@ -560,8 +680,6 @@ contains
          integer, intent(in)  :: ifsun ! ifsun is an argument to Smvgear
          real*8,  intent(in)  :: hmaxnit
          type(t_Smv2Saved), intent(inOut) :: savedVars
-
-         !Write (6,*) 'initializeGear called.'
 
          this%numFailOldJacobian     = 0
          this%jFail     = 0
