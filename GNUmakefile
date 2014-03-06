@@ -3,9 +3,9 @@ OBJS=$(SRCS:.F90=.o)
 FC=ifort
 FC=mpif90
 
-F90FLAGS := -O0 -vec-report0 -ftz -align all -fno-alias -convert big_endian -fPIC -fpe0 -fp-model precise  -align dcommons -check bounds -check uninit -openmp
+#F90FLAGS := -O0 -vec-report0 -ftz -align all -fno-alias -convert big_endian -fPIC -fpe0 -fp-model precise  -align dcommons -check bounds -check uninit -openmp
 #F90FLAGS := -O0 -g -traceback -vec-report0 -ftz -align all -fno-alias -convert big_endian -fPIC -fpe0 -fp-model precise  -align dcommons
-#F90FLAGS := -O3 -vec-report0 -ftz -align all -fno-alias -convert big_endian -fPIC -fpe0 -fp-model precise  -align dcommons -check uninit
+F90FLAGS := -O3 -vec-report0 -ftz -align all -fno-alias -convert big_endian -fPIC -fpe0 -fp-model precise  -align dcommons -check uninit
 EXE=Do_Smv2_Solver.exe
 
 F90FLAGS := $(F90FLAGS) -DDOREORD=$(DOREORD) -DBLOCKSIZE=$(BLOCKSIZE)
@@ -19,7 +19,7 @@ $(EXE): $(OBJS)
 	$(FC) $(F90FLAGS) -o $@ $(OBJS)
 
 ChemTable_mod.o:GmiSolver_SavedVariables_mod.o
-smv2chem_solver.o:GmiSolver_SavedVariables_mod.o timing_mod.o ChemTable_mod.o
+smv2chem_solver.o:GmiSolver_SavedVariables_mod.o timing_mod.o ChemTable_mod.o smvgear.o
 GmiSolver_SavedVariables_mod.o:
 physproc.o:GmiPrintError_mod.o
 GmiManager_mod.o:GmiPrintError_mod.o GmiSolver_SavedVariables_mod.o
