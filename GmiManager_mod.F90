@@ -31,6 +31,7 @@ module GmiManager_mod
    public :: predictConcAndDerivatives
    public :: resetCnewDerivatives
    public :: updateDerivatives
+   public :: determineInitialAbTol
    public :: setInitialOrder
    public :: initCorrector
    public :: setConvergenceTerms
@@ -112,6 +113,7 @@ module GmiManager_mod
       real*8  :: rdeltdn ! time step ratio at one order lower  than current order
       real*8  :: rdeltup ! time step ratio at one order higher than current order
       integer :: ifsuccess ! identifies whether step is successful (=1) or not (=0)
+      real*8 :: tolerance (KBLOOP)
       integer :: correctorIterations
     end type Manager_type
 
@@ -222,6 +224,42 @@ contains
 
       evaluatePredictor  = EVAL_PREDICTOR
    end subroutine setInitialOrder
+
+   !-----------------------------------------------------------------------------
+!
+! ROUTINE
+!   determineInitialAbTol
+! DESCRIPTION
+! Created by: Megan Rose Damon
+!-----------------------------------------------------------------------------
+      subroutine determineInitialAbTol(this, concentrationsNew, concAboveAbtolCount, &
+                                       & ireord, ktloop, ncs, yabst, savedVars)
+         implicit none
+
+         type (Manager_type) :: this
+         real*8, intent(in) :: concentrationsNew(KBLOOP, MXGSAER)
+         integer, intent(inout) :: concAboveAbtolCount(KBLOOP, 5)
+         integer, intent(in) :: ireord
+         integer, intent(in) :: ktloop
+         integer, intent(in) :: ncs
+         real*8, intent(inout) :: yabst(KBLOOP)
+         type(t_Smv2Saved), intent(inOut) :: savedVars
+
+         integer :: kloop
+
+         if (ireord == SOLVE_CHEMISTRY) then
+            call calcNewAbsoluteErrorTolerance (this, concentrationsNew, &
+               & concAboveAbtolCount, ktloop, yabst, ncs, savedVars)
+            do kloop = 1, ktloop
+               this%tolerance(kloop) = yabst(kloop) * this%reltol1
+            end do
+         else
+            do kloop = 1, ktloop
+               this%tolerance(kloop) = this%abtoler1
+            end do
+         end if
+
+      end subroutine determineInitialAbTol
 
       subroutine updateDerivatives(this, cnewDerivatives, ktloop, savedVars)
          implicit none
@@ -799,44 +837,32 @@ contains
 ! It is conceviable that there could be different norms or error criteria
 ! Created by: Megan Rose Damon
 !   ktloop   : # of grid-cells in a grid-block
-!   jlooplo  : low ntloop grid-cell - 1 in a grid-block
-!   itloop   : # of zones (ilong * ilat * ivert)
 !   cnew     : stores conc (y (estimated)) (molec/cm^3)
 !   gloss    : value of first derivatives on output from velocity; right-side
 !              of eqn on input to Backsub; error term (solution from Backsub)
 !              on output from Backsub
 !   dely     : TBD
-!   errmx2   : measure of stiffness/nearness to convergence of each block
-!              sum ydot/y for all species
 !-----------------------------------------------------------------------------
-   subroutine calculateErrorTolerances (this, ktloop, jlooplo, itloop, cnew, gloss, dely, errmx2)
+   subroutine calculateErrorTolerances (this, ktloop, cnew, gloss, dely)
 
       ! ----------------------
       ! Argument declarations.
       ! ----------------------
       type (Manager_type) :: this
       integer, intent(in)  :: ktloop
-      integer, intent(in)  :: jlooplo
-      integer, intent(in)  :: itloop
       real*8, intent(in) :: cnew  (KBLOOP, MXGSAER)
       real*8, intent(in) :: gloss (KBLOOP, MXGSAER)
       real*8, intent(inout)  :: dely  (KBLOOP)
-      real*8, intent(inout) :: errmx2(itloop)
 
       integer :: kloop
       integer :: jspc
       real*8  :: errymax
 
-      ! abtoler1 = failureFraction * abtol(6,ncs) / Min (errmax, 1.0d-03)
       do kloop = 1, ktloop
          do jspc = 1, this%num1stOEqnsSolve
-            errymax     = gloss(kloop,jspc) / (cnew(kloop,jspc) + this%abtoler1)
+            errymax     = gloss(kloop,jspc) / (cnew(kloop,jspc) + this%tolerance(kloop))
             dely(kloop) = dely(kloop) + (errymax * errymax)
          end do
-       end do
-
-       do kloop = 1, ktloop
-         errmx2(jlooplo+kloop) = dely(kloop)
        end do
 
    end subroutine calculateErrorTolerances

@@ -337,38 +337,21 @@
          & ilong, ntspec, ncs, inewold, &
          & do_semiss_inchem, gloss, yemis, ibcb)
 
-
       do kloop = 1, ktloop
         dely(kloop) = 0.0d0
       end do
 
-      IREORDIF: if (ireord /= 1) then
+      call determineInitialAbTol(managerObject, cnew, concAboveAbtolCount, ireord, &
+         ktloop, ncs, yabst, savedVars)
 
-      call calcNewAbsoluteErrorTolerance (managerObject, cnew, concAboveAbtolCount, &
-         & ktloop, yabst, ncs, savedVars)
+      call calculateErrorTolerances (managerObject, ktloop, cnew, gloss, dely)
 
-        do kloop = 1, ktloop
-          dely(kloop) = 0.0d0
-          do jspc = 1, managerObject%num1stOEqnsSolve
-            cnewylow    = cnew (kloop,jspc) + (yabst(kloop) * managerObject%reltol1)
-            errymax     = gloss(kloop,jspc) / cnewylow
-            dely(kloop) = dely (kloop) + (errymax * errymax) ! this is an error (not a tolerance)
-          end do
-        end do
-
-!     ====
-      else
-!     ====
-
+      if (ireord /= SOLVE_CHEMISTRY) then
          do kloop = 1, ktloop
             errmx2(jlooplo+kloop) = dely(kloop)
          end do
          return
-
-!     ===============
-      end if IREORDIF
-!     ===============
-
+      end if
 
       call calcInitialTimeStepSize (managerObject, ktloop, dely, &
          currentTimeStep, ncs, savedVars)
