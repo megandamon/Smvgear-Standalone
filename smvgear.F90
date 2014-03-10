@@ -500,23 +500,8 @@
          & ilong, ntspec, ncs, inewold, &
          & do_semiss_inchem, gloss, yemis, ibcb)
 
-
-
-!     ---------------------------------------------------------------
-!     In the case of the chord method, compute error (gloss) from the
-!     corrected calculation of the first derivative.
-!     ---------------------------------------------------------------
-
-      do jspc = 1, managerObject%num1stOEqnsSolve
-
-        j = jspc + managerObject%num1stOEqnsSolve
-
-        do kloop = 1, ktloop
-          gloss(kloop,jspc) = (currentTimeStep * gloss(kloop,jspc)) -  &
-     &                        (cnewDerivatives(kloop,j) + managerObject%dtlos(kloop,jspc))
-        end do
-
-      end do
+      call computeErrorFromCorrected1stDeriv (managerObject%num1stOEqnsSolve, ktloop, &
+               gloss, currentTimeStep, cnewDerivatives, managerObject%dtlos)
 
 
 !     --------------------------------------------------------------
@@ -952,6 +937,39 @@
       return
 
       end subroutine Smvgear
+
+!-----------------------------------------------------------------------------
+!
+! ROUTINE
+!   computeErrorFromCorrected1stDeriv
+! DESCRIPTION
+! In the case of the chord method, compute error (gloss) from the
+! corrected calculation of the first derivative.
+! Created by: Megan Rose Damon
+!-----------------------------------------------------------------------------
+      subroutine computeErrorFromCorrected1stDeriv (num1stOEqnsSolve, ktloop, gloss, &
+                  & currentTimeStep, cnewDerivatives, dtlos)
+
+         implicit none
+#     include "smv2chem_par.h"
+
+         integer, intent(in) :: num1stOEqnsSolve, ktloop
+         real*8, intent(inout) :: gloss (KBLOOP, MXGSAER)
+         real*8, intent(in) :: currentTimeStep
+         real*8, intent(in) :: cnewDerivatives(KBLOOP, MXGSAER*7)
+         real*8, intent(in)  :: dtlos (KBLOOP, MXGSAER)!
+
+         integer jspc, j, kloop
+
+         do jspc = 1, num1stOEqnsSolve
+           j = jspc + num1stOEqnsSolve
+           do kloop = 1, ktloop
+             gloss(kloop,jspc) = (currentTimeStep * gloss(kloop,jspc)) -  &
+                  (cnewDerivatives(kloop,j) + dtlos(kloop,jspc))
+           end do
+         end do
+
+      end subroutine computeErrorFromCorrected1stDeriv
 
 !-----------------------------------------------------------------------------
 !
