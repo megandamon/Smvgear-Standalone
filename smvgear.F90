@@ -388,15 +388,12 @@
  200  continue
 
       if (managerObject%nqq /= managerObject%nqqold) call updateCoefficients (managerObject, savedVars)
+
       call calculateTimeStep (managerObject, currentTimeStep, evaluatePredictor, MAX_REL_CHANGE)
-
-
       if (currentTimeStep < HMIN) then
         call tightenErrorTolerance (managerObject, pr_smv2, &
                lunsmv, ncs, currentTimeStep, savedVars)
-        !     ========================================
-        go to 100 ! routine start startTimeInterval?
-        !     ========================================
+        go to 100
       end if
 
 
@@ -409,34 +406,16 @@
          call scaleDerivatives (managerObject, ktloop, cnewDerivatives)
       end if
 
-
-!     --------------------------------------------------------------
-!     If the last step was successful, reset rdelmax = 10 and update
-!     the chold array with current values of cnew.
-!     --------------------------------------------------------------
-
-!     ================================
-      IFSUCCESSIF: if (managerObject%ifsuccess == 1) then
-!     ================================
-
+      if (managerObject%ifsuccess == 1) then
         managerObject%rdelmax = 10.0d0
 
-!       ---------------------------------------
-!       Determine new absolute error tolerance.
-!       ---------------------------------------
-
         if (Mod (managerObject%numSuccessTdt, 3) == 2) then
-
             call calcNewAbsoluteErrorTolerance (managerObject, cnew, concAboveAbtolCount, &
                &  ktloop, yabst, ncs, savedVars)
-
         end if
 
-         call updateChold (managerObject, ktloop, cnew, yabst)
-
-!     ==================
-      end if IFSUCCESSIF
-!     ==================
+       call updateChold (managerObject, ktloop, cnew, yabst)
+      end if
 
       call predictConcAndDerivatives (managerObject, cnewDerivatives, explic, ktloop)
 
@@ -473,7 +452,7 @@
 !     Call Decomp to decompose the matrix.
 !     ------------------------------------------------------------------
 
-      if (evaluatePredictor == 1) then
+      if (evaluatePredictor == EVAL_PREDICTOR) then
 
          r1delt = -managerObject%asn1 * currentTimeStep
          nondiag  = savedVars%iarray(ncsp) - managerObject%num1stOEqnsSolve ! iarray is in common block
@@ -483,6 +462,7 @@
          call calculatePredictor (nondiag, savedVars%iarray(ncsp), mechanismObject, cnew, &
             &  savedVars%npdhi(ncsp), savedVars%npdlo(ncsp), r1delt, cc2, savedVars)
          managerObject%numCallsPredict  = managerObject%numCallsPredict + 1
+         evaluatePredictor  = PREDICTOR_JUST_CALLED
 
          ! MRD: End block of code that was in Pderiv
 
@@ -602,7 +582,7 @@
 !         step.
 !         ----------------------------------------------------------------
 
-        else if (evaluatePredictor == 0) then
+        else if (evaluatePredictor == DO_NOT_EVAL_PREDICTOR) then
 
           managerObject%numFailOldJacobian = managerObject%numFailOldJacobian + 1
           evaluatePredictor = 1
@@ -620,6 +600,7 @@
         managerObject%xelaps    = managerObject%told
         managerObject%rdelt     = fracdec
 
+        evaluatePredictor     = EVAL_PREDICTOR
         call resetCnewDerivatives(managerObject, cnewDerivatives, ktloop)
 
 !       =========
@@ -637,7 +618,7 @@
 !     convergence process above.
 !     -------------------------------------------------------------------
 
-      evaluatePredictor = 0
+      evaluatePredictor = DO_NOT_EVAL_PREDICTOR
       if (l3 > 1) then
          call testAccumulatedError (managerObject, ktloop, dely)
       end if

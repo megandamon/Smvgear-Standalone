@@ -32,6 +32,7 @@ module GmiManager_mod
    public :: resetCnewDerivatives
    public :: updateDerivatives
    public :: setInitialOrder
+   public :: initCorrector
    public :: REORDER_GRID_CELLS, SOLVE_CHEMISTRY
    public :: EVAL_PREDICTOR, DO_NOT_EVAL_PREDICTOR, PREDICTOR_JUST_CALLED
 
@@ -109,9 +110,34 @@ module GmiManager_mod
       real*8  :: rdeltdn ! time step ratio at one order lower  than current order
       real*8  :: rdeltup ! time step ratio at one order higher than current order
       integer :: ifsuccess ! identifies whether step is successful (=1) or not (=0)
+      integer :: correctorIterations
     end type Manager_type
 
 contains
+!
+! ROUTINE
+!   initCorrector
+! DESCRIPTION
+! Created by: Megan Rose Damon
+!-----------------------------------------------------------------------------
+   subroutine initCorrector(this, ktloop, concentrationsNew, cnewDerivatives)
+      implicit none
+
+      type (Manager_type) :: this
+      integer, intent(in) :: ktloop
+      real*8, intent(out) :: concentrationsNew(KBLOOP, MXGSAER)
+      real*8, intent(in) :: cnewDerivatives(KBLOOP, MXGSAER*7)
+
+      integer :: jspc, kloop
+
+      this%correctorIterations = 0
+      do jspc = 1, this%num1stOEqnsSolve
+        do kloop = 1, ktloop
+          concentrationsNew (kloop,jspc) = cnewDerivatives(kloop,jspc)
+          this%dtlos(kloop,jspc) = 0.0d0
+        end do
+      end do
+   end subroutine initCorrector
 
 !-----------------------------------------------------------------------------
 !
