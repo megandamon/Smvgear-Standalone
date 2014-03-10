@@ -338,26 +338,15 @@
          & do_semiss_inchem, gloss, yemis, ibcb)
 
 
-! MRD: Take the reordering and error/tolerance calculations and keep them in the solver for now
-!     -------------------------------------------
-!     Determine initial absolute error tolerance.
-!     -------------------------------------------
+      do kloop = 1, ktloop
+        dely(kloop) = 0.0d0
+      end do
 
-      !do kloop = 1, ktloop
-      !  dely(kloop) = 0.0d0
-      !end do
-
-! get rid of magic number 1
-! refactor this into routine(s) smvgear until we deterine their resting place.
-! probably goes in the manager, possibly in gear
-!     ==========================
       IREORDIF: if (ireord /= 1) then
-!     ==========================
 
       call calcNewAbsoluteErrorTolerance (managerObject, cnew, concAboveAbtolCount, &
          & ktloop, yabst, ncs, savedVars)
 
-      !MRD: see manager routine "calculateErrorTolerances"
         do kloop = 1, ktloop
           dely(kloop) = 0.0d0
           do jspc = 1, managerObject%num1stOEqnsSolve
@@ -371,8 +360,10 @@
       else
 !     ====
 
-      call calculateErrorTolerances (managerObject, ktloop, jlooplo, itloop, cnew, gloss, dely, errmx2)
-      return
+         do kloop = 1, ktloop
+            errmx2(jlooplo+kloop) = dely(kloop)
+         end do
+         return
 
 !     ===============
       end if IREORDIF
