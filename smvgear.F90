@@ -242,7 +242,6 @@
       integer :: k1, k2, k3, k4, k5
       integer :: kloop
       integer :: kstepisc
-      integer :: l3
       integer :: nact
       integer :: ncsp  ! ncs       => for daytime   gas chemistry
                        ! ncs + ICS => for nighttime gas chemistry
@@ -406,11 +405,9 @@
 !     -------------------------------------------------------------------
 
 
-!     ========
  250  continue
-!     ========
 
-      l3 = 0
+      managerObject%correctorIterations = 0
       call initCorrector (managerObject, ktloop, cnew, cnewDerivatives)
 
 !     ------------------------------------------------------------------
@@ -429,16 +426,13 @@
          !K: Need to send whole mech object to get rrate in predictor, also need cnew
          call calculatePredictor (nondiag, savedVars%iarray(ncsp), mechanismObject, cnew, &
             &  savedVars%npdhi(ncsp), savedVars%npdlo(ncsp), r1delt, cc2, savedVars)
+
          managerObject%numCallsPredict  = managerObject%numCallsPredict + 1
          evaluatePredictor  = PREDICTOR_JUST_CALLED
 
-         ! MRD: End block of code that was in Pderiv
-
-         !K: Consider un-inlining this.
+!K: Consider un-inlining this.
 !!DIR$   INLINE
-!       ===========
         call Decomp  &
-!       ===========
      &    (savedVars, managerObject%num1stOEqnsSolve, ktloop, ncsp, cc2, vdiag)
 !DIR$   NOINLINE
 
@@ -452,13 +446,11 @@
 !     Evaluate the first derivative using corrected values of cnew.
 !     -------------------------------------------------------------
 
-!     ========
+
  300  continue
-!     ========
 
-!   print*, "in 300, evaluating first derivative"
+      ! Evaluate the first derivative using corrected values of cnew.
      call velocity (mechanismObject, managerObject%num1stOEqnsSolve, ncsp, cnew, gloss, nfdh1, savedVars)
-
      managerObject%numCallsVelocity = managerObject%numCallsVelocity + 1
 
       call setBoundaryConditions (mechanismObject, itloop, &
@@ -469,41 +461,20 @@
       call computeErrorFromCorrected1stDeriv (managerObject%num1stOEqnsSolve, ktloop, &
                gloss, currentTimeStep, cnewDerivatives, managerObject%dtlos)
 
-
 !     --------------------------------------------------------------
 !     Solve the linear system of equations with the corrector error;
 !     Backsub solves backsubstitution over matrix of partial derivs.
 !     --------------------------------------------------------------
 ! MRD: stays in gear b/c manager doesn't know about backsubstitution
 ! As part of gear's timestep it calls backsub
-!     ============
       call Backsub  &
-!     ============
      &  (savedVars, managerObject%num1stOEqnsSolve, ktloop, ncsp, cc2, vdiag, gloss)
 
+      call sumAccumulatedError (managerObject, cnew, cnewDerivatives, dely, errymax, gloss, &
+                                 ktloop)
+      call calculateNewRmsError (managerObject, ktloop, dely, managerObject%correctorIterations, savedVars)
 
-!     ----------------------------------------------------------------
-!     Sum up the accumulated error, correct the concentration with the
-!     error, and begin to calculate the rmsnorm of the error relative
-!     to chold.
-!     ----------------------------------------------------------------
-
-        do kloop = 1, ktloop
-         dely(kloop) = 0.0d0
-       end do
-
-       ! MRD: removed an optimization for the case of asn1 = 1  (saves a multiplication per loop)
-       do i = 1, managerObject%num1stOEqnsSolve !*
-          do kloop = 1, ktloop
-             managerObject%dtlos(kloop,i) = managerObject%dtlos(kloop,i) + gloss(kloop,i) !*
-             cnew(kloop,i)  = cnewDerivatives(kloop,i)  + (managerObject%asn1 * managerObject%dtlos(kloop,i))
-             errymax        = gloss(kloop,i) * managerObject%chold(kloop,i) !*
-             dely(kloop)    = dely(kloop)    + (errymax * errymax) !*
-          end do
-       end do
-
-      call calculateNewRmsError (managerObject, ktloop, dely, l3, savedVars)
-
+! MRD: the comments below may be misleading.
 
 !     --------------------------------------------------------
 !     If convergence occurs, go on to check accumulated error.
@@ -516,11 +487,10 @@
 !       new values of cnew.
 !       -------------------------------------------------------------------
 
-        if (l3 == 1) then
+        if (managerObject%correctorIterations == 1) then
 
-!         =========
           go to 300
-!         =========
+
 
 !         ----------------------------------------------------------------
 !         The corrector iteration failed to converge.
@@ -537,11 +507,14 @@
           managerObject%numFailOldJacobian = managerObject%numFailOldJacobian + 1
           evaluatePredictor = 1
 
-!         =========
           go to 250
-!         =========
 
         end if
+
+         ! if the Jacobian is current, then reduce the time step,
+         ! reset the accumulated derivatives to their values before the failed step,
+         ! and retry with the smaller step.
+
 
         managerObject%numFailAfterPredict     = managerObject%numFailAfterPredict + 1
         managerObject%rdelmax   = 2.0d0
@@ -553,9 +526,7 @@
         evaluatePredictor     = EVAL_PREDICTOR
         call resetCnewDerivatives(managerObject, cnewDerivatives, ktloop)
 
-!       =========
         go to 200
-!       =========
 
       end if
 
@@ -569,7 +540,7 @@
 !     -------------------------------------------------------------------
 
       evaluatePredictor = DO_NOT_EVAL_PREDICTOR
-      if (l3 > 1) then
+      if (managerObject%correctorIterations > 1) then
          call testAccumulatedError (managerObject, ktloop, dely)
       end if
 
@@ -591,7 +562,6 @@
 !     ==============================
       DER2MAXIF: if (managerObject%der2max > managerObject%enqq) then
 !     ==============================
-
         managerObject%xelaps = managerObject%told
         managerObject%numFailErrorTest  = managerObject%numFailErrorTest + 1
         managerObject%jfail  = managerObject%jfail  + 1
@@ -607,6 +577,7 @@
 
           managerObject%ifsuccess = 0
           managerObject%rdeltup   = 0.0d0
+          !if (prDiag) Write(*,*) "managerObject%jFail <= 6"
 
 !         =========
           go to 400
@@ -727,7 +698,7 @@
 !       ---------------------------------------------------
 
         managerObject%timeremain = managerObject%chemTimeInterval - managerObject%xelaps
-        !   print*, "checking time interval"
+
 
         if (managerObject%timeremain <= 1.0d-06) return
 
@@ -828,7 +799,6 @@
 
 !     ========
  400  continue
-!     ========
 
       call estimateTimeStepRatio (managerObject, ktloop, dely, cnewDerivatives, savedVars)
 
