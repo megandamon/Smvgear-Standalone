@@ -437,13 +437,7 @@
 !     ========
 
       l3 = 0
-      do jspc = 1, managerObject%num1stOEqnsSolve
-        do kloop = 1, ktloop
-          cnew (kloop,jspc) = cnewDerivatives(kloop,jspc)
-          managerObject%dtlos(kloop,jspc) = 0.0d0
-        end do
-      end do
-
+      call initCorrector (managerObject, ktloop, cnew, cnewDerivatives)
 
 !     ------------------------------------------------------------------
 !     If evaluatePredictor = 1, re-evaluate predictor matrix P = I - H * aset(1) * J
