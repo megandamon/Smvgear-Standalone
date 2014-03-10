@@ -498,8 +498,26 @@
 !     ============
      &  (savedVars, managerObject%num1stOEqnsSolve, ktloop, ncsp, cc2, vdiag, gloss)
 
-      call sumAccumulatedError (managerObject, cnew, cnewDerivatives, dely, errymax, gloss, &
-                                 ktloop)
+
+!     ----------------------------------------------------------------
+!     Sum up the accumulated error, correct the concentration with the
+!     error, and begin to calculate the rmsnorm of the error relative
+!     to chold.
+!     ----------------------------------------------------------------
+
+        do kloop = 1, ktloop
+         dely(kloop) = 0.0d0
+       end do
+
+       ! MRD: removed an optimization for the case of asn1 = 1  (saves a multiplication per loop)
+       do i = 1, managerObject%num1stOEqnsSolve !*
+          do kloop = 1, ktloop
+             managerObject%dtlos(kloop,i) = managerObject%dtlos(kloop,i) + gloss(kloop,i) !*
+             cnew(kloop,i)  = cnewDerivatives(kloop,i)  + (managerObject%asn1 * managerObject%dtlos(kloop,i))
+             errymax        = gloss(kloop,i) * managerObject%chold(kloop,i) !*
+             dely(kloop)    = dely(kloop)    + (errymax * errymax) !*
+          end do
+       end do
 
       call calculateNewRmsError (managerObject, ktloop, dely, l3, savedVars)
 
