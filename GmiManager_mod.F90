@@ -33,6 +33,7 @@ module GmiManager_mod
    public :: updateDerivatives
    public :: setInitialOrder
    public :: initCorrector
+   public :: sumAccumulatedError
    public :: REORDER_GRID_CELLS, SOLVE_CHEMISTRY
    public :: EVAL_PREDICTOR, DO_NOT_EVAL_PREDICTOR, PREDICTOR_JUST_CALLED
 
@@ -114,6 +115,47 @@ module GmiManager_mod
     end type Manager_type
 
 contains
+
+!-----------------------------------------------------------------------------
+!
+! ROUTINE
+!   sumAccumulatedError
+! DESCRIPTION
+! Sum up the accumulated error, correct the concentration with the
+! error, and begin to calculate the rmsnorm of the error relative
+! to chold
+! Created by: Megan Rose Damon
+!-----------------------------------------------------------------------------
+   subroutine sumAccumulatedError(this, cnew, cnewDerivatives, dely, errymax, gloss, &
+                                 ktloop)
+      implicit none
+
+      type (Manager_type) :: this
+      real*8, intent(out) :: cnew(KBLOOP, MXGSAER)
+      real*8, intent(in) :: cnewDerivatives(KBLOOP, MXGSAER*7)
+      real*8, intent(inout) :: dely(KBLOOP)
+      real*8, intent(inout) :: errymax
+      real*8, intent(in) :: gloss(KBLOOP, MXGSAER)
+      integer, intent(in) :: ktloop
+
+      integer :: i, kloop
+
+      do kloop = 1, ktloop
+        dely(kloop) = 0.0d0
+      end do
+
+      do i = 1, this%num1stOEqnsSolve
+         do kloop = 1, ktloop
+            this%dtlos(kloop,i) = this%dtlos(kloop,i) + gloss(kloop,i) !*
+            cnew(kloop,i)  = cnewDerivatives(kloop,i)  + (this%asn1 * this%dtlos(kloop,i))
+            errymax        = gloss(kloop,i) * this%chold(kloop,i) !*
+            dely(kloop)    = dely(kloop)    + (errymax * errymax) !*
+         end do
+      end do
+
+   end subroutine sumAccumulatedError
+
+!-----------------------------------------------------------------------------
 !
 ! ROUTINE
 !   initCorrector
