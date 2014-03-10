@@ -33,6 +33,7 @@ module GmiManager_mod
    public :: updateDerivatives
    public :: setInitialOrder
    public :: initCorrector
+   public :: setConvergenceTerms
    public :: sumAccumulatedError
    public :: REORDER_GRID_CELLS, SOLVE_CHEMISTRY
    public :: EVAL_PREDICTOR, DO_NOT_EVAL_PREDICTOR, PREDICTOR_JUST_CALLED
@@ -154,6 +155,26 @@ contains
       end do
 
    end subroutine sumAccumulatedError
+
+!-----------------------------------------------------------------------------
+!
+! ROUTINE
+!   setConvergenceTerms
+! DESCRIPTION
+! Created by: Megan Rose Damon
+!-----------------------------------------------------------------------------
+   subroutine setConvergenceTerms(this, maxAllowableSteps)
+      implicit none
+
+      type (Manager_type) :: this
+      integer, intent(in) :: maxAllowableSteps
+
+       this%hratio = 1.0d0
+       this%nslp   = this%numSuccessTdt + maxAllowableSteps
+       this%drate  = 0.7d0
+
+   end subroutine setConvergenceTerms
+
 
 !-----------------------------------------------------------------------------
 !

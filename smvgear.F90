@@ -469,9 +469,7 @@
 !DIR$   NOINLINE
 
         evaluatePredictor  = -1
-        managerObject%hratio = 1.0d0
-        managerObject%nslp   = managerObject%numSuccessTdt + MBETWEEN
-        managerObject%drate  = 0.7d0
+        call setConvergenceTerms (managerObject, MBETWEEN)
 
       end if
 
