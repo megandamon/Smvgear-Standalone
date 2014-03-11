@@ -42,8 +42,8 @@ module GmiManager_mod
 
    integer, parameter :: REORDER_GRID_CELLS = 1
    integer, parameter :: SOLVE_CHEMISTRY = 2
-   integer, parameter :: STEP_SUCCESS = 1
-   integer, parameter :: STEP_FAILURE = 0
+   integer, parameter :: STEP_SUCCESS = 0
+   integer, parameter :: STEP_FAILURE = 1
 
    ! MRD: do these belong here?
    integer, parameter :: EVAL_PREDICTOR = 1

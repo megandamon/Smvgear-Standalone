@@ -514,17 +514,9 @@
          ! if the Jacobian is current, then reduce the time step,
          ! reset the accumulated derivatives to their values before the failed step,
          ! and retry with the smaller step.
-
-
-        managerObject%numFailAfterPredict     = managerObject%numFailAfterPredict + 1
-        managerObject%rdelmax   = 2.0d0
-        evaluatePredictor     = 1
-        managerObject%ifsuccess = 0
-        managerObject%elapsedTimeInChemInterval    = managerObject%told
-        managerObject%timeStepRatio     = fracdec
-
-        evaluatePredictor     = EVAL_PREDICTOR
-        call resetCnewDerivatives(managerObject, cnewDerivatives, ktloop)
+         evaluatePredictor     = EVAL_PREDICTOR
+         call updateAfterNonConvTightenLimits (managerObject, 2.0d0, managerObject%told, fracdec)
+         call resetCnewDerivatives(managerObject, cnewDerivatives, ktloop)
 
         go to 200
 
