@@ -36,11 +36,14 @@ module GmiManager_mod
    public :: initCorrector
    public :: setConvergenceTerms
    public :: sumAccumulatedError
+   public :: updateAfterNonConvTightenLimits
    public :: REORDER_GRID_CELLS, SOLVE_CHEMISTRY
    public :: EVAL_PREDICTOR, DO_NOT_EVAL_PREDICTOR, PREDICTOR_JUST_CALLED
 
    integer, parameter :: REORDER_GRID_CELLS = 1
    integer, parameter :: SOLVE_CHEMISTRY = 2
+   integer, parameter :: STEP_SUCCESS = 1
+   integer, parameter :: STEP_FAILURE = 0
 
    ! MRD: do these belong here?
    integer, parameter :: EVAL_PREDICTOR = 1
@@ -77,8 +80,9 @@ module GmiManager_mod
        real*8  :: iabove
        real*8  :: initialError, initialError_inv
        real*8  :: errmax_ncs_inv
-       real*8  :: xelaps ! elapsed time in chem interval (s)
-       real*8  :: told !stores last value of xelaps in case current step fails
+       !real*8  :: xelaps ! elapsed time in chem interval (s)
+       real*8  :: elapsedTimeInChemInterval ! elapsed time in chem interval (s)
+       real*8  :: told !stores last value of elapsedTimeInChemInterval in case current step fails
        real*8  :: reltol1, reltol2, reltol3
        real*8  :: rmsError
        integer :: idoub ! records # of steps since the last change in step size or
@@ -97,7 +101,7 @@ module GmiManager_mod
        real*8 :: enqq ! pertst^2*order for current order
        real*8  :: conp1, conp2, conp3
        integer :: nqqisc ! nqq * num1stOEqnsSolve
-       real*8 :: rdelt ! factor (time step ratio) by which delt is increased or decreased
+       real*8 :: timeStepRatio ! factor (time step ratio) by which delt is increased or decreased
        real*8 :: rdelmax ! max factor by which delt can be increased in a single step;
                !                 as in Lsodes, set it to 1d4 initially to compensate for the
                !                 small initial delt, but then set it to 10 after successful
@@ -118,6 +122,35 @@ module GmiManager_mod
     end type Manager_type
 
 contains
+
+!-----------------------------------------------------------------------------
+!
+! ROUTINE
+!   updateAfterNonConvTightenLimits
+! DESCRIPTION
+! if the Jacobian is current, then reduce the time step,
+! reset the accumulated derivatives to their values before the failed step,
+! and retry with the smaller step.
+! Created by: Megan Rose Damon
+!-----------------------------------------------------------------------------
+   subroutine updateAfterNonConvTightenLimits (this, maxFactorTimeStepIncrease, &
+                              & elapsedTime, timeStepRatio)
+
+      implicit none
+
+      type (Manager_type) :: this
+      real*8, intent(in) :: maxFactorTimeStepIncrease
+      real*8, intent(in) :: elapsedTime
+      real*8, intent(in) :: timeStepRatio
+
+      this%numFailAfterPredict     = this%numFailAfterPredict + 1
+      this%rdelmax   = maxFactorTimeStepIncrease
+      this%ifsuccess = STEP_SUCCESS
+      this%elapsedTimeInChemInterval    = elapsedTime
+      this%timeStepRatio     = timeStepRatio
+
+   end subroutine updateAfterNonConvTightenLimits
+
 
 !-----------------------------------------------------------------------------
 !
@@ -220,7 +253,7 @@ contains
 
       this%nqqold = 0
       this%nqq    = 1
-      this%rdelt  = 1.0d0
+      this%timeStepRatio  = 1.0d0
 
       evaluatePredictor  = EVAL_PREDICTOR
    end subroutine setInitialOrder
@@ -409,7 +442,7 @@ contains
       i1     = 1
 
       do j = 2, this%kstep
-         rdelta = rdelta * this%rdelt
+         rdelta = rdelta * this%timeStepRatio
          i1 = i1 + this%num1stOEqnsSolve
           do i = i1, i1 + (this%num1stOEqnsSolve-1)
             do kloop = 1, ktloop
@@ -561,7 +594,7 @@ contains
       end if
 
       !     Find the largest of the predicted time step ratios of each order.
-      this%rdelt = Max (this%rdeltup, rdeltsm, this%rdeltdn)
+      this%timeStepRatio = Max (this%rdeltup, rdeltsm, this%rdeltdn)
 
 
    end subroutine estimateTimeStepRatio
@@ -711,7 +744,7 @@ contains
 ! ROUTINE
 !   calculateTimeStep
 ! DESCRIPTION
-!     Limit size of rdelt, then recalculate new time step and update
+!     Limit size of timeStepRatio, then recalculate new time step and update
 !     hratio.  Use hratio to determine whether or not the predictor
 !     should be updated. (edit by MRD on 2/27/2013)
 ! Created by: Megan Rose Damon
@@ -733,11 +766,11 @@ contains
       real*8  :: hmtim
 
       hmtim  = Min (this%maxTimeStep, this%timeremain)
-      this%rdelt  = Min (this%rdelt, this%rdelmax, hmtim/delt)
-      delt   = delt   * this%rdelt
+      this%timeStepRatio  = Min (this%timeStepRatio, this%rdelmax, hmtim/delt)
+      delt   = delt   * this%timeStepRatio
 
-      this%hratio = this%hratio * this%rdelt
-      this%xelaps = this%xelaps + delt
+      this%hratio = this%hratio * this%timeStepRatio
+      this%elapsedTimeInChemInterval = this%elapsedTimeInChemInterval + delt
       ! rename nslp
       if ((Abs (this%hratio-1.0d0) > maxRelChange) .or. (this%numSuccessTdt >= this%nslp)) then
         jeval = 1 ! MRD: could be a boolean; this is signifying to whether or not to update Jacobian
@@ -889,7 +922,7 @@ contains
       this%idoub     = 2
       this%nslp      = MBETWEEN
       this%jrestar   = 0
-      this%xelaps    = 0.0d0
+      this%elapsedTimeInChemInterval    = 0.0d0
       this%told      = 0.0d0
       this%timeremain = this%chemTimeInterval
 

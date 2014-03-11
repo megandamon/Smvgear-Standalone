@@ -371,11 +371,11 @@
 
 
 !     -------------------------------------------------------------------
-!     If the currentTimeStep is different than during the last step (if rdelt /= 1),
+!     If the currentTimeStep is different than during the last step (if timeStepRatio /= 1),
 !     then scale the derivatives.
 !     -------------------------------------------------------------------
 
-      if (managerObject%rdelt /= 1.0d0) then
+      if (managerObject%timeStepRatio /= 1.0d0) then
          call scaleDerivatives (managerObject, ktloop, cnewDerivatives)
       end if
 
@@ -520,8 +520,8 @@
         managerObject%rdelmax   = 2.0d0
         evaluatePredictor     = 1
         managerObject%ifsuccess = 0
-        managerObject%xelaps    = managerObject%told
-        managerObject%rdelt     = fracdec
+        managerObject%elapsedTimeInChemInterval    = managerObject%told
+        managerObject%timeStepRatio     = fracdec
 
         evaluatePredictor     = EVAL_PREDICTOR
         call resetCnewDerivatives(managerObject, cnewDerivatives, ktloop)
@@ -562,7 +562,7 @@
 !     ==============================
       DER2MAXIF: if (managerObject%der2max > managerObject%enqq) then
 !     ==============================
-        managerObject%xelaps = managerObject%told
+        managerObject%elapsedTimeInChemInterval = managerObject%told
         managerObject%numFailErrorTest  = managerObject%numFailErrorTest + 1
         managerObject%jfail  = managerObject%jfail  + 1
 
@@ -586,7 +586,7 @@
         else if (managerObject%jfail <= 20) then
 
           managerObject%ifsuccess = 0
-          managerObject%rdelt     = fracdec
+          managerObject%timeStepRatio     = fracdec
 
 !         =========
           go to 200
@@ -595,7 +595,7 @@
         else
 
           currentTimeStep    = currentTimeStep * 0.1d0
-          managerObject%rdelt   = 1.0d0
+          managerObject%timeStepRatio   = 1.0d0
           managerObject%jfail   = 0
           managerObject%jrestar = managerObject%jrestar + 1
           managerObject%idoub   = 5
@@ -607,7 +607,7 @@
           end do
 
           if (pr_smv2) then
-            Write (lunsmv,970) currentTimeStep, managerObject%xelaps
+            Write (lunsmv,970) currentTimeStep, managerObject%elapsedTimeInChemInterval
           end if
 
  970      format ('currentTimeStep dec to ', e13.5, ' at time ', e13.5,  &
@@ -645,7 +645,7 @@
 
 
         if (pr_qqjk .and. do_qqjk_inchem) then
-          xtimestep = managerObject%xelaps - managerObject%told
+          xtimestep = managerObject%elapsedTimeInChemInterval - managerObject%told
 
 !      print*, "about to call Do_Smv2_Diag"
 !         =================
@@ -663,7 +663,7 @@
         managerObject%jfail     = 0
         managerObject%ifsuccess = 1
         managerObject%numSuccessTdt    = managerObject%numSuccessTdt + 1
-        managerObject%told      = managerObject%xelaps
+        managerObject%told      = managerObject%elapsedTimeInChemInterval
 
         call updateDerivatives(managerObject, cnewDerivatives, ktloop, savedVars)
 
@@ -697,7 +697,7 @@
 !       Exit smvgear if a time interval has been completed.
 !       ---------------------------------------------------
 
-        managerObject%timeremain = managerObject%chemTimeInterval - managerObject%xelaps
+        managerObject%timeremain = managerObject%chemTimeInterval - managerObject%elapsedTimeInChemInterval
 
 
         if (managerObject%timeremain <= 1.0d-06) return
@@ -733,7 +733,7 @@
 
           end if
 
-          managerObject%rdelt = 1.0d0
+          managerObject%timeStepRatio = 1.0d0
 
 !         =========
           go to 200
@@ -804,12 +804,12 @@
 
 
 !     ---------------------------------------------------------------
-!     If the last step was successful and rdelt is small, keep the
+!     If the last step was successful and timeStepRatio is small, keep the
 !     current step and order, and allow three successful steps before
 !     re-checking the time step and order.
 !     ---------------------------------------------------------------
 
-      if ((managerObject%rdelt < 1.1d0) .and. (managerObject%ifsuccess == 1)) then
+      if ((managerObject%timeStepRatio < 1.1d0) .and. (managerObject%ifsuccess == 1)) then
 
         managerObject%idoub = 3
 
@@ -819,11 +819,11 @@
 
 !       --------------------------------------------------------------
 !       If the maximum time step ratio is that of one order lower than
-!       the current order, decrease the order.  Do not minimize rdelt
+!       the current order, decrease the order.  Do not minimize timeStepRatio
 !       to <= 1, when ifsuccess = 0 since this is less efficient.
 !       --------------------------------------------------------------
 
-      else if (managerObject%rdelt == managerObject%rdeltdn) then
+      else if (managerObject%timeStepRatio == managerObject%rdeltdn) then
 
 
         managerObject%nqq = managerObject%nqq - 1
@@ -835,7 +835,7 @@
 !       ---------------------------------------------------------------
 
 
-      else if (managerObject%rdelt == managerObject%rdeltup) then
+      else if (managerObject%timeStepRatio == managerObject%rdeltup) then
 
         real_kstep = managerObject%kstep
         consmult   = savedVars%aset(managerObject%nqq,managerObject%kstep) / real_kstep
@@ -859,7 +859,7 @@
 
 !     ----------------------------------------------------------------
 !     If the last two steps have failed, re-set idoub to the current
-!     order + 1.  Do not minimize rdelt if jfail >= 2 since tests show
+!     order + 1.  Do not minimize timeStepRatio if jfail >= 2 since tests show
 !     that this merely leads to additional computations.
 !     ----------------------------------------------------------------
 
